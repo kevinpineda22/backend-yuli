@@ -21,3 +21,9 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
+
+
+// Ruta de prueba para verificar que el servidor está funcionando
+app.get('/', (req, res) => {
+    res.status(200).json({ message: 'el ternero se crió correctamente' });
+  });
