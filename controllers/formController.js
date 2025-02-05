@@ -12,7 +12,7 @@ const crearFormulario = async (req, res) => {
 
     // Insertamos el registro inicial con role "creador" y estado "pendiente"
     let { data, error } = await supabase
-      .from('forms')
+      .from('yuli')
       .insert({
         fecha,
         documento,
@@ -32,7 +32,7 @@ const crearFormulario = async (req, res) => {
     // Usamos el id insertado como workflow_id para agrupar las acciones
     const workflow_id = data.id;
     let { error: updateError } = await supabase
-      .from('forms')
+      .from('yuli')
       .update({ workflow_id })
       .eq('id', workflow_id);
 
@@ -68,7 +68,7 @@ const respuestaDirector = async (req, res) => {
 
     // Obtenemos el registro inicial del workflow
     let { data: formRecord, error: fetchError } = await supabase
-      .from('forms')
+      .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('id', { ascending: true })
@@ -83,7 +83,7 @@ const respuestaDirector = async (req, res) => {
     // Insertamos un registro con la respuesta del director
     let newEstado = decision === 'rechazado' ? 'rechazado' : 'pendiente';
     let { data, error } = await supabase
-      .from('forms')
+      .from('yuli')
       .insert({
         workflow_id,
         fecha: formRecord.fecha,
@@ -134,7 +134,7 @@ const respuestaGerencia = async (req, res) => {
 
     // Obtenemos el registro inicial del workflow
     let { data: formRecord, error: fetchError } = await supabase
-      .from('forms')
+      .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('id', { ascending: true })
@@ -149,7 +149,7 @@ const respuestaGerencia = async (req, res) => {
     // Insertamos un registro con la respuesta de gerencia
     let newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
     let { data, error } = await supabase
-      .from('forms')
+      .from('yuli')
       .insert({
         workflow_id,
         fecha: formRecord.fecha,
@@ -183,7 +183,7 @@ const obtenerHistorial = async (req, res) => {
     const { workflow_id } = req.params;
     
     let { data, error } = await supabase
-      .from('forms')
+      .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('created_at', { ascending: true });
