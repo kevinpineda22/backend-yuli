@@ -99,7 +99,7 @@ const crearFormulario = async (req, res) => {
 /**
  * Registra la respuesta del director.
  * - Si la decisión es rechazar, actualiza el registro a 'rechazado' y finaliza el proceso.
- * - Si aprueba, actualiza el registro a 'aprobado' y envía correo a gerencia.
+ * - Si aprueba, actualiza el registro a 'aprobado por director' y envía correo a gerencia.
  */
 const respuestaDirector = async (req, res) => {
   try {
@@ -143,11 +143,11 @@ const respuestaDirector = async (req, res) => {
       return res.json({ message: "Formulario rechazado por el director" });
     }
   
-    // Si el director aprueba, actualizar el registro a 'aprobado'
+    // Si el director aprueba, actualizar el registro a 'aprobado por director'
     const { error } = await supabase
       .from('yuli')
       .update({
-        estado: 'aprobado',
+        estado: 'aprobado por director',
         observacion: observacion || ''
       })
       .eq('workflow_id', workflow_id);
@@ -196,7 +196,7 @@ const respuestaGerencia = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
   
-    const newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
+    const newEstado = decision === 'aprobado' ? 'aprobado por ambos' : 'rechazado';
     const { error } = await supabase
       .from('yuli')
       .update({
@@ -210,7 +210,7 @@ const respuestaGerencia = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
   
-    res.json({ message: `Formulario ${newEstado} por gerencia` });
+    res.json({ message: `Formulario ${newEstado}` });
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
     res.status(500).json({ error: "Error interno del servidor" });
