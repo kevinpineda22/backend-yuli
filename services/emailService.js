@@ -40,10 +40,12 @@ export const generarHtmlCorreoDirector = (formData) => `
       <p><strong>Fecha:</strong> ${formData.fecha}</p>
       <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
       <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
-      <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
+      <p>Por favor, revisa la solicitud y toma una decisión:</p>
+    <a href="http://localhost:5173/aprobar-rechazar/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
     </body>
   </html>
 `;
+
 
 export const generarHtmlCorreoGerencia = (formData) => `
   <html>
