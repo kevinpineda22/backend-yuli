@@ -10,29 +10,27 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  secure: true,
-  port: 465,
-  tls: {
-    rejectUnauthorized: false,
-  },
+  secure: true, // SSL
+  port: 465,    // Puerto para SSL
 });
 
-// Función para enviar correos
-export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
-  try {
-    await transporter.sendMail({
-      from: `"Merkahorro" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html: htmlContent,
-      attachments,
-    });
-    console.log(`📨 Correo enviado a ${to}`);
-  } catch (error) {
-    console.error('❌ Error al enviar el correo:', error);
-    throw error;
-  }
-};
+
+  // Función para enviar correos
+  export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
+    try {
+      await transporter.sendMail({
+        from: `"Merkahorro" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        html: htmlContent,
+        attachments,
+      });
+      console.log(`📨 Correo enviado a ${to}`);
+    } catch (error) {
+      console.error('❌ Error al enviar el correo:', error);
+      throw error;
+    }
+  };
 
 // Definición de las funciones de generación de HTML
 export const generarHtmlCorreoDirector = (formData) => `
