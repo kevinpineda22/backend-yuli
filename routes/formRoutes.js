@@ -1,12 +1,13 @@
-// routes/formRoutes.js
-const express = require('express');
-const { crearFormulario, respuestaDirector, respuestaGerencia, obtenerHistorial } = require('../controllers/formController');
+import express from 'express';
+import { crearFormulario, respuestaDirector, respuestaGerencia, obtenerHistorial, upload } from '../controllers/formController.js';
 
 const router = express.Router();
 
-router.post('/yuli', crearFormulario);
+// Ruta para crear el formulario con la subida del archivo
+router.post('/yuli', upload.single('documento'), crearFormulario);
+
 router.put('/yuli/:workflow_id/director', respuestaDirector);
 router.put('/yuli/:workflow_id/gerencia', respuestaGerencia);
 router.get('/yuli/:workflow_id', obtenerHistorial);
 
-module.exports = router;
+export default router;

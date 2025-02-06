@@ -1,21 +1,59 @@
-// controllers/formController.js
-const { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia } = require('../services/emailService');
+import multer from 'multer';
+import { createClient } from '@supabase/supabase-js';
+import { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia } from '../services/emailService.js';
+
+// Configuración de Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Configuración de multer para manejar archivos en memoria
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 /**
- * Crea un formulario (registro inicial) y envía correo al director.
- * Se asume que el campo "documento" contiene la URL del PDF subido al bucket "pdfs-yuli".
+ * Crea un formulario (registro inicial), sube el archivo a Supabase y envía correo al director.
  */
 const crearFormulario = async (req, res) => {
   try {
-    const { fecha, documento, director, gerencia } = req.body;
-    const supabase = req.supabase;
+    const { fecha, director, gerencia } = req.body;
+    const file = req.file;  // Archivo recibido desde el frontend
 
-    // Insertamos el registro inicial con role "creador" y estado "pendiente"
-    let { data, error } = await supabase
+    if (!file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo' });
+    }
+
+    // Subir el archivo a Supabase Storage
+    const fileName = `${Date.now()}_${file.originalname}`;
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('pdfs-yuli')  // Nombre del bucket en Supabase
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+      });
+
+    if (uploadError) {
+      console.error('Error al subir el archivo:', uploadError);
+      return res.status(500).json({ error: 'Error al subir el archivo a Supabase' });
+    }
+
+    // Obtener la URL pública del archivo
+    const { data: publicUrlData, error: publicUrlError } = supabase
+      .storage
+      .from('pdfs-yuli')
+      .getPublicUrl(fileName);
+
+    if (publicUrlError) {
+      console.error('Error al obtener URL pública:', publicUrlError);
+      return res.status(500).json({ error: 'Error al obtener la URL pública' });
+    }
+
+    const documentoUrl = publicUrlData.publicUrl;
+
+    // Insertamos el registro en la base de datos
+    const { data, error } = await supabase
       .from('yuli')
       .insert({
         fecha,
-        documento,
+        documento: documentoUrl,
         director,
         gerencia,
         estado: 'pendiente',
@@ -29,9 +67,9 @@ const crearFormulario = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    // Usamos el id insertado como workflow_id para agrupar las acciones
+    // Asignar workflow_id al registro
     const workflow_id = data.id;
-    let { error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from('yuli')
       .update({ workflow_id })
       .eq('id', workflow_id);
@@ -41,8 +79,8 @@ const crearFormulario = async (req, res) => {
       return res.status(500).json({ error: updateError.message });
     }
 
-    // Enviamos correo al director
-    const html = generarHtmlCorreoDirector({ fecha, documento, gerencia });
+    // Enviar correo al director con la URL del documento
+    const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia });
     await sendEmail(director, "Nueva Solicitud de Aprobación", html);
 
     res.status(201).json({ message: "Formulario creado y correo enviado al director", workflow_id });
@@ -58,7 +96,6 @@ const crearFormulario = async (req, res) => {
  */
 const respuestaDirector = async (req, res) => {
   try {
-    const supabase = req.supabase;
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
 
@@ -67,7 +104,7 @@ const respuestaDirector = async (req, res) => {
     }
 
     // Obtenemos el registro inicial del workflow
-    let { data: formRecord, error: fetchError } = await supabase
+    const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
@@ -80,9 +117,9 @@ const respuestaDirector = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
 
-    // Insertamos un registro con la respuesta del director
-    let newEstado = decision === 'rechazado' ? 'rechazado' : 'pendiente';
-    let { data, error } = await supabase
+    // Insertamos la respuesta del director
+    const newEstado = decision === 'rechazado' ? 'rechazado' : 'pendiente';
+    const { error } = await supabase
       .from('yuli')
       .insert({
         workflow_id,
@@ -101,8 +138,8 @@ const respuestaDirector = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Enviar correo a gerencia si la solicitud fue aprobada
     if (decision === 'aprobado') {
-      // Enviamos correo a gerencia
       const html = generarHtmlCorreoGerencia({
         fecha: formRecord.fecha,
         documento: formRecord.documento,
@@ -124,7 +161,6 @@ const respuestaDirector = async (req, res) => {
  */
 const respuestaGerencia = async (req, res) => {
   try {
-    const supabase = req.supabase;
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
 
@@ -133,7 +169,7 @@ const respuestaGerencia = async (req, res) => {
     }
 
     // Obtenemos el registro inicial del workflow
-    let { data: formRecord, error: fetchError } = await supabase
+    const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
@@ -146,9 +182,9 @@ const respuestaGerencia = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
 
-    // Insertamos un registro con la respuesta de gerencia
-    let newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
-    let { data, error } = await supabase
+    // Insertamos la respuesta de gerencia
+    const newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
+    const { error } = await supabase
       .from('yuli')
       .insert({
         workflow_id,
@@ -167,7 +203,7 @@ const respuestaGerencia = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.json({ message: `Formulario ${newEstado} por gerencia` });
+    res.json({ message: `Formulario ${newEstado} por gerencia` });
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
     res.status(500).json({ error: "Error interno del servidor" });
@@ -179,10 +215,9 @@ const respuestaGerencia = async (req, res) => {
  */
 const obtenerHistorial = async (req, res) => {
   try {
-    const supabase = req.supabase;
     const { workflow_id } = req.params;
     
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
@@ -200,9 +235,10 @@ const obtenerHistorial = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   crearFormulario,
   respuestaDirector,
   respuestaGerencia,
-  obtenerHistorial
+  obtenerHistorial,
+  upload  // Exportamos upload para usar en las rutas
 };

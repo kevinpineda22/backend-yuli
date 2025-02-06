@@ -1,19 +1,19 @@
-// services/emailService.js
-require('dotenv').config();
-const nodemailer = require('nodemailer');
+import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
-// Función para generar un asunto dinámico agregando un sufijo aleatorio
+dotenv.config();
+
+// Generar un asunto dinámico
 const generateDynamicSubject = (baseSubject) => {
-  // Genera un sufijo aleatorio de 6 caracteres (letras y dígitos)
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   return `${baseSubject} - ${randomSuffix}`;
 };
 
-// Configuración del transporter para Gmail usando variables de entorno
+// Configuración del transporter para Gmail
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE, // true para SSL en Gmail
+  secure: process.env.SMTP_SECURE === 'true', // Asegúrate que sea booleano
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
@@ -21,7 +21,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async (to, subject, html) => {
-  // Generamos un asunto dinámico a partir del subject base
   const finalSubject = generateDynamicSubject(subject);
 
   const mailOptions = {
@@ -47,7 +46,7 @@ const generarHtmlCorreoDirector = (formData) => {
       <body style="font-family: Arial, sans-serif;">
         <h2>Solicitud de Aprobación - Director de Área</h2>
         <p><strong>Fecha:</strong> ${formData.fecha}</p>
-        <p><strong>Documento:</strong> ${formData.documento}</p>
+        <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
         <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
         <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
       </body>
@@ -61,7 +60,7 @@ const generarHtmlCorreoGerencia = (formData) => {
       <body style="font-family: Arial, sans-serif;">
         <h2>Solicitud de Aprobación - Gerencia</h2>
         <p><strong>Fecha:</strong> ${formData.fecha}</p>
-        <p><strong>Documento:</strong> ${formData.documento}</p>
+        <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
         <p><strong>Director:</strong> ${formData.director}</p>
         <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
       </body>
@@ -69,7 +68,7 @@ const generarHtmlCorreoGerencia = (formData) => {
   `;
 };
 
-module.exports = {
+export {
   sendEmail,
   generarHtmlCorreoDirector,
   generarHtmlCorreoGerencia

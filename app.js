@@ -1,9 +1,11 @@
-// app.js
-require('dotenv').config();
-const express = require('express');
+import dotenv from 'dotenv';
+import express from 'express';
+import supabase from './supabaseCliente';
+import formRoutes from './routes/formRoutes';
+
+dotenv.config();
+
 const app = express();
-const supabase = require('./supabaseCliente');
-const formRoutes = require('./routes/formRoutes');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -22,8 +24,7 @@ app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
 
-
 // Ruta de prueba para verificar que el servidor está funcionando
 app.get('/', (req, res) => {
-    res.status(200).json({ message: 'el ternero se crió correctamente' });
-  });
+  res.status(200).json({ message: 'el ternero se crió correctamente' });
+});
