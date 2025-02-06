@@ -1,40 +1,39 @@
+// app.js
 import dotenv from 'dotenv';
 import express from 'express';
-import cors from 'cors';  // Importa cors
-import supabase from './supabaseCliente.js';  // Agrega la extensión .js
+import cors from 'cors';
+import supabase from './supabaseCliente.js';
 import formRoutes from './routes/formRoutes.js';
-
 
 dotenv.config();
 
 const app = express();
 
-
-// Configura CORS para permitir solicitudes desde tu frontend
+// Configurar CORS para permitir solicitudes desde el frontend
 app.use(cors({
-  origin: 'http://localhost:5173',  // Permite solo este origen
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Métodos permitidos
-  allowedHeaders: ['Content-Type', 'Authorization']  // Encabezados permitidos
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware para inyectar supabase en req
+// Middleware para inyectar supabase en req (opcional si lo usas en los controladores)
 app.use((req, res, next) => {
   req.supabase = supabase;
   next();
 });
 
-// Usamos las rutas bajo el path /api
+// Usar las rutas definidas bajo /api
 app.use('/api', formRoutes);
+
+// Ruta de prueba
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'El ternero se crió correctamente' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
-
-// Ruta de prueba para verificar que el servidor está funcionando
-app.get('/', (req, res) => {
-  res.status(200).json({ message: 'el ternero se crió correctamente' });
 });

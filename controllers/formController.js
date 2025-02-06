@@ -1,9 +1,7 @@
+// controllers/formController.js
 import multer from 'multer';
-import { createClient } from '@supabase/supabase-js';
 import { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia } from '../services/emailService.js';
-
-// Configuración de Supabase
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+import supabase from '../supabaseCliente.js';
 
 // Configuración de multer para manejar archivos en memoria
 const storage = multer.memoryStorage();
@@ -26,9 +24,7 @@ const crearFormulario = async (req, res) => {
     const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('pdfs-yuli')
-      .upload(fileName, file.buffer, {
-        contentType: file.mimetype,
-      });
+      .upload(fileName, file.buffer, { contentType: file.mimetype });
 
     if (uploadError) {
       console.error('Error al subir el archivo:', uploadError);
@@ -48,7 +44,7 @@ const crearFormulario = async (req, res) => {
 
     const documentoUrl = publicUrlData.publicUrl;
 
-    // Insertamos el registro en la base de datos
+    // Insertar registro en la base de datos
     const { data, error } = await supabase
       .from('yuli')
       .insert({
@@ -68,18 +64,29 @@ const crearFormulario = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    if (!data || !data.id) {
+      console.error("No se generó el ID tras la inserción.");
+      return res.status(500).json({ error: "Error al generar el ID para el workflow." });
+    }
+
+    // Asignar workflow_id (igual al id generado) para agrupar el proceso
     const workflow_id = data.id;
-    await supabase
+    const { error: updateError } = await supabase
       .from('yuli')
       .update({ workflow_id })
       .eq('id', workflow_id);
 
-    // Generar link para aprobar/rechazar
-    const approvalLink = `${process.env.FRONTEND_URL}/aprobar/${workflow_id}`;
-    const rejectionLink = `${process.env.FRONTEND_URL}/rechazar/${workflow_id}`;
+    if (updateError) {
+      console.error("Error al actualizar workflow_id:", updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
 
-    // Enviar correo al director con botones para aprobar/rechazar
-    const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia, approvalLink, rejectionLink });
+    // Generar enlaces para aprobar o rechazar
+    const approvalLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/director`;
+    const rejectionLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/director?decision=rechazado`;
+
+    // Enviar correo al director con enlaces para aprobar o rechazar
+    const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia, workflow_id, approvalLink, rejectionLink });
     await sendEmail(director, "Nueva Solicitud de Aprobación", html);
 
     res.status(201).json({ message: "Formulario creado y correo enviado al director", workflow_id });
@@ -91,17 +98,22 @@ const crearFormulario = async (req, res) => {
 
 /**
  * Registra la respuesta del director.
- * Si aprueba, se envía automáticamente un correo a gerencia.
+ * - Si rechaza, se marca el workflow como rechazado sin enviar correo a gerencia.
+ * - Si aprueba, se inserta la respuesta y se envía correo a gerencia para la decisión final.
  */
 const respuestaDirector = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    const { decision, observacion } = req.body;
-
+    // Se permite que la decisión venga en la query string (para rechazo automático) o en el body
+    const decisionQuery = req.query.decision;
+    const { decision: decisionBody, observacion } = req.body;
+    const decision = decisionQuery || decisionBody;
+    
     if (!['aprobado', 'rechazado'].includes(decision)) {
       return res.status(400).json({ error: "Decisión inválida" });
     }
 
+    // Obtener registro inicial del workflow
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
@@ -115,8 +127,32 @@ const respuestaDirector = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
 
-    const newEstado = decision === 'rechazado' ? 'rechazado' : 'pendiente';
-    await supabase
+    // Si la decisión es rechazar, se inserta y se marca como rechazado sin enviar correo a gerencia
+    if (decision === 'rechazado') {
+      const { error } = await supabase
+        .from('yuli')
+        .insert({
+          workflow_id,
+          fecha: formRecord.fecha,
+          documento: formRecord.documento,
+          director: formRecord.director,
+          gerencia: formRecord.gerencia,
+          estado: 'rechazado',
+          observacion: observacion || 'Rechazado por director',
+          role: 'director'
+        })
+        .single();
+  
+      if (error) {
+        console.error("Error al insertar respuesta del director:", error);
+        return res.status(500).json({ error: error.message });
+      }
+  
+      return res.json({ message: "Formulario rechazado por el director" });
+    }
+  
+    // Si el director aprueba, se inserta la respuesta y se envía correo a gerencia para la decisión final
+    const { error } = await supabase
       .from('yuli')
       .insert({
         workflow_id,
@@ -124,21 +160,24 @@ const respuestaDirector = async (req, res) => {
         documento: formRecord.documento,
         director: formRecord.director,
         gerencia: formRecord.gerencia,
-        estado: newEstado,
-        observacion: observacion || (decision === 'rechazado' ? 'Rechazado por director' : ''),
+        estado: 'pendiente',
+        observacion: observacion || '',
         role: 'director'
       })
       .single();
-
-    if (decision === 'aprobado') {
-      const approvalLink = `${process.env.FRONTEND_URL}/aprobar/${workflow_id}`;
-      const rejectionLink = `${process.env.FRONTEND_URL}/rechazar/${workflow_id}`;
-      const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, approvalLink, rejectionLink });
-      await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
-      return res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
-    } else {
-      return res.json({ message: "Formulario rechazado por el director" });
+  
+    if (error) {
+      console.error("Error al insertar respuesta del director:", error);
+      return res.status(500).json({ error: error.message });
     }
+  
+    // Generar enlaces para la gerencia
+    const approvalLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/gerencia`;
+    const rejectionLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/gerencia?decision=rechazado`;
+    const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, workflow_id, approvalLink, rejectionLink });
+    await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
+  
+    return res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
   } catch (err) {
     console.error("Error en respuestaDirector:", err);
     res.status(500).json({ error: "Error interno del servidor" });
@@ -152,11 +191,11 @@ const respuestaGerencia = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
-
+  
     if (!['aprobado', 'rechazado'].includes(decision)) {
       return res.status(400).json({ error: "Decisión inválida" });
     }
-
+  
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
@@ -164,14 +203,14 @@ const respuestaGerencia = async (req, res) => {
       .order('id', { ascending: true })
       .limit(1)
       .single();
-
+  
     if (fetchError) {
       console.error("Error al obtener formulario:", fetchError);
       return res.status(500).json({ error: fetchError.message });
     }
-
+  
     const newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
-    await supabase
+    const { error } = await supabase
       .from('yuli')
       .insert({
         workflow_id,
@@ -184,7 +223,12 @@ const respuestaGerencia = async (req, res) => {
         role: 'gerencia'
       })
       .single();
-
+  
+    if (error) {
+      console.error("Error al insertar respuesta de gerencia:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  
     res.json({ message: `Formulario ${newEstado} por gerencia` });
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
@@ -198,18 +242,17 @@ const respuestaGerencia = async (req, res) => {
 const obtenerHistorial = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    
     const { data, error } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('created_at', { ascending: true });
-
+  
     if (error) {
       console.error("Error al obtener historial:", error);
       return res.status(500).json({ error: error.message });
     }
-
+  
     res.json({ historial: data });
   } catch (err) {
     console.error("Error en obtenerHistorial:", err);
