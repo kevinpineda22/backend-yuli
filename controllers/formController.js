@@ -81,9 +81,9 @@ const crearFormulario = async (req, res) => {
       return res.status(500).json({ error: updateError.message });
     }
 
-    // Generar enlaces para aprobar o rechazar
-    const approvalLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/director`;
-    const rejectionLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/director?decision=rechazado`;
+    // Generar enlaces para aprobar o rechazar (para el director)
+    const approvalLink = `http://localhost:5173/dgdecision/${workflow_id}/director`;
+    const rejectionLink = `http://localhost:5173/dgdecision/${workflow_id}/director?decision=rechazado`;
 
     // Enviar correo al director con enlaces para aprobar o rechazar
     const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia, workflow_id, approvalLink, rejectionLink });
@@ -98,22 +98,20 @@ const crearFormulario = async (req, res) => {
 
 /**
  * Registra la respuesta del director.
- * - Si rechaza, se marca el workflow como rechazado sin enviar correo a gerencia.
- * - Si aprueba, se inserta la respuesta y se envía correo a gerencia para la decisión final.
+ * - Si la decisión es rechazar, actualiza el registro a 'rechazado' y finaliza el proceso.
+ * - Si aprueba, actualiza el registro a 'aprobado' y envía correo a gerencia.
  */
 const respuestaDirector = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    // Se permite que la decisión venga en la query string (para rechazo automático) o en el body
-    const decisionQuery = req.query.decision;
-    const { decision: decisionBody, observacion } = req.body;
-    const decision = decisionQuery || decisionBody;
+    const decision = req.query.decision || req.body.decision;
+    const { observacion } = req.body;
     
     if (!['aprobado', 'rechazado'].includes(decision)) {
       return res.status(400).json({ error: "Decisión inválida" });
     }
 
-    // Obtener registro inicial del workflow
+    // Obtener el registro inicial del workflow
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
@@ -127,53 +125,41 @@ const respuestaDirector = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
 
-    // Si la decisión es rechazar, se inserta y se marca como rechazado sin enviar correo a gerencia
     if (decision === 'rechazado') {
+      // Actualizar el registro para marcarlo como rechazado
       const { error } = await supabase
         .from('yuli')
-        .insert({
-          workflow_id,
-          fecha: formRecord.fecha,
-          documento: formRecord.documento,
-          director: formRecord.director,
-          gerencia: formRecord.gerencia,
+        .update({
           estado: 'rechazado',
-          observacion: observacion || 'Rechazado por director',
-          role: 'director'
+          observacion: observacion || 'Rechazado por director'
         })
-        .single();
+        .eq('workflow_id', workflow_id);
   
       if (error) {
-        console.error("Error al insertar respuesta del director:", error);
+        console.error("Error al actualizar respuesta del director:", error);
         return res.status(500).json({ error: error.message });
       }
   
       return res.json({ message: "Formulario rechazado por el director" });
     }
   
-    // Si el director aprueba, se inserta la respuesta y se envía correo a gerencia para la decisión final
+    // Si el director aprueba, actualizar el registro a 'aprobado'
     const { error } = await supabase
       .from('yuli')
-      .insert({
-        workflow_id,
-        fecha: formRecord.fecha,
-        documento: formRecord.documento,
-        director: formRecord.director,
-        gerencia: formRecord.gerencia,
-        estado: 'pendiente',
-        observacion: observacion || '',
-        role: 'director'
+      .update({
+        estado: 'aprobado',
+        observacion: observacion || ''
       })
-      .single();
+      .eq('workflow_id', workflow_id);
   
     if (error) {
-      console.error("Error al insertar respuesta del director:", error);
+      console.error("Error al actualizar respuesta del director:", error);
       return res.status(500).json({ error: error.message });
     }
   
     // Generar enlaces para la gerencia
-    const approvalLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/gerencia`;
-    const rejectionLink = `${process.env.FRONTEND_URL}/aprobar-rechazar/${workflow_id}/gerencia?decision=rechazado`;
+    const approvalLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia`;
+    const rejectionLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
     const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, workflow_id, approvalLink, rejectionLink });
     await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
   
@@ -196,6 +182,7 @@ const respuestaGerencia = async (req, res) => {
       return res.status(400).json({ error: "Decisión inválida" });
     }
   
+    // Obtener el registro inicial del workflow
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
@@ -212,20 +199,14 @@ const respuestaGerencia = async (req, res) => {
     const newEstado = decision === 'aprobado' ? 'aprobado' : 'rechazado';
     const { error } = await supabase
       .from('yuli')
-      .insert({
-        workflow_id,
-        fecha: formRecord.fecha,
-        documento: formRecord.documento,
-        director: formRecord.director,
-        gerencia: formRecord.gerencia,
+      .update({
         estado: newEstado,
-        observacion: observacion || (decision === 'rechazado' ? 'Rechazado por gerencia' : ''),
-        role: 'gerencia'
+        observacion: observacion || (decision === 'rechazado' ? 'Rechazado por gerencia' : '')
       })
-      .single();
+      .eq('workflow_id', workflow_id);
   
     if (error) {
-      console.error("Error al insertar respuesta de gerencia:", error);
+      console.error("Error al actualizar respuesta de gerencia:", error);
       return res.status(500).json({ error: error.message });
     }
   
