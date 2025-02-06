@@ -15,7 +15,7 @@ const upload = multer({ storage });
 const crearFormulario = async (req, res) => {
   try {
     const { fecha, director, gerencia } = req.body;
-    const file = req.file;  // Archivo recibido desde el frontend
+    const file = req.file;
 
     if (!file) {
       return res.status(400).json({ error: 'No se recibió ningún archivo' });
@@ -25,7 +25,7 @@ const crearFormulario = async (req, res) => {
     const fileName = `${Date.now()}_${file.originalname}`;
     const { data: uploadData, error: uploadError } = await supabase
       .storage
-      .from('pdfs-yuli')  // Nombre del bucket en Supabase
+      .from('pdfs-yuli')
       .upload(fileName, file.buffer, {
         contentType: file.mimetype,
       });
@@ -60,11 +60,17 @@ const crearFormulario = async (req, res) => {
         observacion: '',
         role: 'creador'
       })
+      .select()  // Aseguramos que devuelva el ID tras la inserción
       .single();
 
     if (error) {
       console.error("Error al insertar formulario:", error);
       return res.status(500).json({ error: error.message });
+    }
+
+    if (!data || !data.id) {
+      console.error("No se generó el ID tras la inserción.");
+      return res.status(500).json({ error: "Error al generar el ID para el workflow." });
     }
 
     // Asignar workflow_id al registro
@@ -91,7 +97,7 @@ const crearFormulario = async (req, res) => {
 };
 
 /**
- * Registra la respuesta del director.  
+ * Registra la respuesta del director.
  * Si aprueba, se envía automáticamente un correo a gerencia.
  */
 const respuestaDirector = async (req, res) => {
@@ -240,6 +246,5 @@ export {
   respuestaDirector,
   respuestaGerencia,
   obtenerHistorial,
-  upload  // Exportamos upload para usar en las rutas
+  upload
 };
-
