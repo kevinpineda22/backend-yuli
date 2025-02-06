@@ -1,46 +1,47 @@
-import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Generar un asunto dinámico
-const generateDynamicSubject = (baseSubject) => {
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
-  return `${baseSubject} - ${randomSuffix}`;
-};
-
 // Configuración del transporter para Gmail
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE === 'true', // Asegúrate que sea booleano
+  service: 'gmail',
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  }
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  secure: true,  // Usa SSL
+  port: 465,
+  tls: {
+    rejectUnauthorized: false,  // Permite certificados no autorizados (útil en desarrollo)
+  },
 });
 
-const sendEmail = async (to, subject, html) => {
-  const finalSubject = generateDynamicSubject(subject);
-
-  const mailOptions = {
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject: finalSubject,
-    html,
-  };
-
+/**
+ * Envía un correo con soporte para adjuntos.
+ * @param {string} to - Destinatario del correo.
+ * @param {string} subject - Asunto del correo.
+ * @param {string} htmlContent - Contenido HTML del correo.
+ * @param {Array} attachments - Archivos adjuntos (opcional).
+ */
+export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
   try {
-    let info = await transporter.sendMail(mailOptions);
-    console.log("Correo enviado:", info.messageId);
-    return info;
+    await transporter.sendMail({
+      from: `"Merkahorro" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html: htmlContent,
+      attachments,
+    });
+    console.log(`📨 Correo enviado a ${to}`);
   } catch (error) {
-    console.error("Error al enviar correo:", error);
-    throw error;
+    console.error('❌ Error al enviar el correo:', error);
+    throw error;  // Lanza el error para manejarlo en el controlador
   }
 };
 
-const generarHtmlCorreoDirector = (formData) => {
+// Generar HTML para el correo del director
+export const generarHtmlCorreoDirector = (formData) => {
   return `
     <html>
       <body style="font-family: Arial, sans-serif;">
@@ -54,7 +55,8 @@ const generarHtmlCorreoDirector = (formData) => {
   `;
 };
 
-const generarHtmlCorreoGerencia = (formData) => {
+// Generar HTML para el correo de gerencia
+export const generarHtmlCorreoGerencia = (formData) => {
   return `
     <html>
       <body style="font-family: Arial, sans-serif;">

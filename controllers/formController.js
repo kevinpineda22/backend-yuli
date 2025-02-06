@@ -60,7 +60,7 @@ const crearFormulario = async (req, res) => {
         observacion: '',
         role: 'creador'
       })
-      .select()  // Aseguramos que devuelva el ID tras la inserción
+      .select()
       .single();
 
     if (error) {
