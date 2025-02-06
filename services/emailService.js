@@ -33,33 +33,18 @@ const transporter = nodemailer.createTransport({
   };
 
 // Definición de las funciones de generación de HTML
-export const generarHtmlCorreoDirector = (formData) => {
-  // Validar que workflow_id está definido
-  if (!formData.workflow_id) {
-    console.error("El workflow_id está indefinido.");
-    return `
-      <html>
-        <body style="font-family: Arial, sans-serif;">
-          <h2>Solicitud de Aprobación - Director de Área</h2>
-          <p>Hubo un error al generar el enlace para aprobar o rechazar la solicitud.</p>
-        </body>
-      </html>
-    `;
-  }
-  
-  return `
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>Solicitud de Aprobación - Director de Área</h2>
-        <p><strong>Fecha:</strong> ${formData.fecha}</p>
-        <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
-        <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
-        <p>Por favor, revisa la solicitud y toma una decisión:</p>
-        <a href="http://localhost:5173/aprobar-rechazar/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
-      </body>
-    </html>
-  `;
-};
+export const generarHtmlCorreoDirector = (formData) => `
+  <html>
+    <body style="font-family: Arial, sans-serif;">
+      <h2>Solicitud de Aprobación - Director de Área</h2>
+      <p><strong>Fecha:</strong> ${formData.fecha}</p>
+      <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
+      <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
+      <p>Por favor, revisa la solicitud y toma una decisión:</p>
+    <a href="http://localhost:5173/aprobar-rechazar/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
+    </body>
+  </html>
+`;
 
 
 export const generarHtmlCorreoGerencia = (formData) => `
