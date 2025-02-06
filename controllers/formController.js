@@ -242,3 +242,4 @@ export {
   obtenerHistorial,
   upload  // Exportamos upload para usar en las rutas
 };
+
