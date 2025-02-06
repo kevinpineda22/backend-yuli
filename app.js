@@ -1,12 +1,21 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';  // Importa cors
 import supabase from './supabaseCliente.js';  // Agrega la extensión .js
 import formRoutes from './routes/formRoutes.js';
 
 
 dotenv.config();
 
-  const app = express();
+const app = express();
+
+
+// Configura CORS para permitir solicitudes desde tu frontend
+app.use(cors({
+  origin: 'http://localhost:5173',  // Permite solo este origen
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Métodos permitidos
+  allowedHeaders: ['Content-Type', 'Authorization']  // Encabezados permitidos
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
