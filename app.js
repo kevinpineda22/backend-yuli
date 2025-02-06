@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import supabase from './supabaseCliente';
-import formRoutes from './routes/formRoutes';
+import supabase from './supabaseCliente.js';  // Agrega la extensión .js
+import formRoutes from './routes/formRoutes.js';
+
 
 dotenv.config();
 

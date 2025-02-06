@@ -10,20 +10,14 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  secure: true,  // Usa SSL
+  secure: true,
   port: 465,
   tls: {
-    rejectUnauthorized: false,  // Permite certificados no autorizados (útil en desarrollo)
+    rejectUnauthorized: false,
   },
 });
 
-/**
- * Envía un correo con soporte para adjuntos.
- * @param {string} to - Destinatario del correo.
- * @param {string} subject - Asunto del correo.
- * @param {string} htmlContent - Contenido HTML del correo.
- * @param {Array} attachments - Archivos adjuntos (opcional).
- */
+// Función para enviar correos
 export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
   try {
     await transporter.sendMail({
@@ -36,42 +30,31 @@ export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
     console.log(`📨 Correo enviado a ${to}`);
   } catch (error) {
     console.error('❌ Error al enviar el correo:', error);
-    throw error;  // Lanza el error para manejarlo en el controlador
+    throw error;
   }
 };
 
-// Generar HTML para el correo del director
-export const generarHtmlCorreoDirector = (formData) => {
-  return `
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>Solicitud de Aprobación - Director de Área</h2>
-        <p><strong>Fecha:</strong> ${formData.fecha}</p>
-        <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
-        <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
-        <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
-      </body>
-    </html>
-  `;
-};
+// Definición de las funciones de generación de HTML
+export const generarHtmlCorreoDirector = (formData) => `
+  <html>
+    <body style="font-family: Arial, sans-serif;">
+      <h2>Solicitud de Aprobación - Director de Área</h2>
+      <p><strong>Fecha:</strong> ${formData.fecha}</p>
+      <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
+      <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
+      <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
+    </body>
+  </html>
+`;
 
-// Generar HTML para el correo de gerencia
-export const generarHtmlCorreoGerencia = (formData) => {
-  return `
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>Solicitud de Aprobación - Gerencia</h2>
-        <p><strong>Fecha:</strong> ${formData.fecha}</p>
-        <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
-        <p><strong>Director:</strong> ${formData.director}</p>
-        <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
-      </body>
-    </html>
-  `;
-};
-
-export {
-  sendEmail,
-  generarHtmlCorreoDirector,
-  generarHtmlCorreoGerencia
-};
+export const generarHtmlCorreoGerencia = (formData) => `
+  <html>
+    <body style="font-family: Arial, sans-serif;">
+      <h2>Solicitud de Aprobación - Gerencia</h2>
+      <p><strong>Fecha:</strong> ${formData.fecha}</p>
+      <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
+      <p><strong>Director:</strong> ${formData.director}</p>
+      <p>Por favor, ingresa a la plataforma para aprobar o rechazar la solicitud.</p>
+    </body>
+  </html>
+`;
