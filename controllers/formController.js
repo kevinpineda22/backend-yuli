@@ -131,7 +131,7 @@ const respuestaDirector = async (req, res) => {
         .from('yuli')
         .update({
           estado: 'rechazado',
-          observacion: observacion || 'Rechazado por director'
+          observacion: 'Rechazado por director'
         })
         .eq('workflow_id', workflow_id);
   
@@ -148,7 +148,7 @@ const respuestaDirector = async (req, res) => {
       .from('yuli')
       .update({
         estado: 'aprobado por director',
-        observacion: observacion || ''
+        observacion: 'Aprobado por director'
       })
       .eq('workflow_id', workflow_id);
   
@@ -201,7 +201,7 @@ const respuestaGerencia = async (req, res) => {
       .from('yuli')
       .update({
         estado: newEstado,
-        observacion: observacion || (decision === 'rechazado' ? 'Rechazado por gerencia' : '')
+        observacion: decision === 'aprobado' ? 'Aprobado por ambos' : 'Rechazado por gerencia'
       })
       .eq('workflow_id', workflow_id);
   
