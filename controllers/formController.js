@@ -106,7 +106,7 @@ const respuestaDirector = async (req, res) => {
     const { workflow_id } = req.params;
     const decision = req.query.decision || req.body.decision;
     const { observacion } = req.body;
-    
+
     if (!['aprobado', 'rechazado'].includes(decision)) {
       return res.status(400).json({ error: "Decisión inválida" });
     }
@@ -131,38 +131,38 @@ const respuestaDirector = async (req, res) => {
         .from('yuli')
         .update({
           estado: 'rechazado',
-          observacion: 'Rechazado por director'
+          observacion: observacion || ''
         })
         .eq('workflow_id', workflow_id);
-  
+
       if (error) {
         console.error("Error al actualizar respuesta del director:", error);
         return res.status(500).json({ error: error.message });
       }
-  
+
       return res.json({ message: "Formulario rechazado por el director" });
     }
-  
+
     // Si el director aprueba, actualizar el registro a 'aprobado por director'
     const { error } = await supabase
       .from('yuli')
       .update({
         estado: 'aprobado por director',
-        observacion: 'Aprobado por director'
+        observacion: observacion || ''
       })
       .eq('workflow_id', workflow_id);
-  
+
     if (error) {
       console.error("Error al actualizar respuesta del director:", error);
       return res.status(500).json({ error: error.message });
     }
-  
+
     // Generar enlaces para la gerencia
     const approvalLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia`;
     const rejectionLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
     const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, workflow_id, approvalLink, rejectionLink });
     await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
-  
+
     return res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
   } catch (err) {
     console.error("Error en respuestaDirector:", err);
@@ -177,11 +177,11 @@ const respuestaGerencia = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
-  
+
     if (!['aprobado', 'rechazado'].includes(decision)) {
       return res.status(400).json({ error: "Decisión inválida" });
     }
-  
+
     // Obtener el registro inicial del workflow
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
@@ -190,26 +190,26 @@ const respuestaGerencia = async (req, res) => {
       .order('id', { ascending: true })
       .limit(1)
       .single();
-  
+
     if (fetchError) {
       console.error("Error al obtener formulario:", fetchError);
       return res.status(500).json({ error: fetchError.message });
     }
-  
+
     const newEstado = decision === 'aprobado' ? 'aprobado por ambos' : 'rechazado';
     const { error } = await supabase
       .from('yuli')
       .update({
         estado: newEstado,
-        observacion: decision === 'aprobado' ? 'Aprobado por ambos' : 'Rechazado por gerencia'
+        observacion: observacion || ''
       })
       .eq('workflow_id', workflow_id);
-  
+
     if (error) {
       console.error("Error al actualizar respuesta de gerencia:", error);
       return res.status(500).json({ error: error.message });
     }
-  
+
     res.json({ message: `Formulario ${newEstado}` });
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
@@ -228,12 +228,12 @@ const obtenerHistorial = async (req, res) => {
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('created_at', { ascending: true });
-  
+
     if (error) {
       console.error("Error al obtener historial:", error);
       return res.status(500).json({ error: error.message });
     }
-  
+
     res.json({ historial: data });
   } catch (err) {
     console.error("Error en obtenerHistorial:", err);
