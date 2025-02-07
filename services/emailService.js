@@ -38,7 +38,7 @@ export const generarHtmlCorreoDirector = (formData) => `
       <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
       <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
       <p>Por favor, revisa la solicitud y toma una decisión:</p>
-      <a href="http://localhost:5173/dgdecision/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
+      <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
     </body>
   </html>
 `;
@@ -52,7 +52,7 @@ export const generarHtmlCorreoGerencia = (formData) => `
       <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
       <p><strong>Director:</strong> ${formData.director}</p>
       <p>Por favor, revisa la solicitud y toma una decisión:</p>
-      <a href="http://localhost:5173/dgdecision/${formData.workflow_id}/gerencia" target="_blank">Aprobar o Rechazar Solicitud</a>
+      <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/gerencia" target="_blank">Aprobar o Rechazar Solicitud</a>
     </body>
   </html>
 `;

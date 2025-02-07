@@ -82,8 +82,8 @@ const crearFormulario = async (req, res) => {
     }
 
     // Generar enlaces para aprobar o rechazar (para el director)
-    const approvalLink = `http://localhost:5173/dgdecision/${workflow_id}/director`;
-    const rejectionLink = `http://localhost:5173/dgdecision/${workflow_id}/director?decision=rechazado`;
+    const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
+    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director?decision=rechazado`;
 
     // Enviar correo al director con enlaces para aprobar o rechazar
     const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia, workflow_id, approvalLink, rejectionLink });
@@ -159,8 +159,8 @@ const respuestaDirector = async (req, res) => {
     }
 
     // Generar enlaces para la gerencia
-    const approvalLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia`;
-    const rejectionLink = `http://localhost:5173/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
+    const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`;
+    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
     const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, workflow_id, approvalLink, rejectionLink });
     await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
 
