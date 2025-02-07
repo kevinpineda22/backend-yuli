@@ -217,9 +217,8 @@ const respuestaGerencia = async (req, res) => {
   }
 };
 
-/**
- * Obtiene el historial completo de un workflow (todos los registros asociados al workflow_id).
- */
+
+
 // Obtener todas las solicitudes
 const obtenerTodasLasSolicitudes = async (req, res) => {
   try {
@@ -241,10 +240,36 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
 };
 
 
+/**
+ * Actualiza la observación de un formulario.
+ */
+const actualizarObservacion = async (req, res) => {
+  try {
+    const { workflow_id } = req.params;
+    const { observacion } = req.body;
+
+    const { error } = await supabase
+      .from('yuli')
+      .update({ observacion })
+      .eq('workflow_id', workflow_id);
+
+    if (error) {
+      console.error("Error al actualizar la observación:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ message: "Observación actualizada correctamente" });
+  } catch (err) {
+    console.error("Error en actualizarObservacion:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
 export {
   crearFormulario,
   respuestaDirector,
   respuestaGerencia,
   obtenerTodasLasSolicitudes,
+  actualizarObservacion,
   upload
 };
