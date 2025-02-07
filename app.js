@@ -11,7 +11,7 @@ const app = express();
 
 // Configurar CORS para permitir solicitudes desde el frontend
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://www.merkahorro.com/',
+  origin: process.env.FRONTEND_URL || 'https://www.merkahorro.com',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
