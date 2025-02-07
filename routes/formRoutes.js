@@ -1,6 +1,6 @@
 // routes/formRoutes.js
 import express from 'express';
-import { crearFormulario, respuestaDirector, respuestaGerencia, obtenerTodasLasSolicitudes, actualizarObservacion, upload } from '../controllers/formController.js';
+import { crearFormulario, respuestaDirector, respuestaGerencia,obtenerHistorial, obtenerTodasLasSolicitudes, actualizarObservacion, upload } from '../controllers/formController.js';
 
 const router = express.Router();
 
@@ -10,6 +10,7 @@ router.post('/yuli', upload.single('documento'), crearFormulario);
 router.post('/yuli/:workflow_id/director', respuestaDirector);
 router.post('/yuli/:workflow_id/gerencia', respuestaGerencia);
 
+router.get('/yuli/:workflow_id', obtenerHistorial);
 // Ruta para obtener el historial de un workflow
 router.get('/yuli', obtenerTodasLasSolicitudes);
 
