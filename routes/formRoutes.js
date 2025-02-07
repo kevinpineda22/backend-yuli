@@ -12,6 +12,6 @@ router.post('/yuli/:workflow_id/director', respuestaDirector);
 router.post('/yuli/:workflow_id/gerencia', respuestaGerencia);
 
 // Ruta para obtener el historial de un workflow
-router.get('/yuli/:workflow_id', obtenerHistorial);
+router.get('/yuli', obtenerTodasLasSolicitudes);
 
 export default router;

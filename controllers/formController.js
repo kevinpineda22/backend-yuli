@@ -220,26 +220,26 @@ const respuestaGerencia = async (req, res) => {
 /**
  * Obtiene el historial completo de un workflow (todos los registros asociados al workflow_id).
  */
-const obtenerHistorial = async (req, res) => {
+// Obtener todas las solicitudes
+const obtenerTodasLasSolicitudes = async (req, res) => {
   try {
-    const { workflow_id } = req.params;
     const { data, error } = await supabase
       .from('yuli')
       .select('*')
-      .eq('workflow_id', workflow_id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.error("Error al obtener historial:", error);
+      console.error("Error al obtener todas las solicitudes:", error);
       return res.status(500).json({ error: error.message });
     }
 
     res.json({ historial: data });
   } catch (err) {
-    console.error("Error en obtenerHistorial:", err);
+    console.error("Error en obtenerTodasLasSolicitudes:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
+
 
 export {
   crearFormulario,
