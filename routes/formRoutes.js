@@ -1,6 +1,6 @@
 // routes/formRoutes.js
 import express from 'express';
-import { crearFormulario, respuestaDirector, respuestaGerencia, obtenerHistorial, upload } from '../controllers/formController.js';
+import { crearFormulario, respuestaDirector, respuestaGerencia, obtenerTodasLasSolicitudes, upload } from '../controllers/formController.js';
 
 const router = express.Router();
 

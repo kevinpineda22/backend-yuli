@@ -245,6 +245,6 @@ export {
   crearFormulario,
   respuestaDirector,
   respuestaGerencia,
-  obtenerHistorial,
+  obtenerTodasLasSolicitudes,
   upload
 };
