@@ -148,9 +148,10 @@ const respuestaDirector = async (req, res) => {
       .from('yuli')
       .update({
         estado: 'aprobado por director',
-        observacion: observacion || ''
+        observacion: observacion || formRecord.observacion  // Mantener la observación existente si no se proporciona una nueva
       })
       .eq('workflow_id', workflow_id);
+
 
     if (error) {
       console.error("Error al actualizar respuesta del director:", error);
@@ -201,9 +202,10 @@ const respuestaGerencia = async (req, res) => {
       .from('yuli')
       .update({
         estado: newEstado,
-        observacion: observacion || ''
+        observacion: observacion || formRecord.observacion  // Mantener la observación existente si no hay una nueva
       })
       .eq('workflow_id', workflow_id);
+
 
     if (error) {
       console.error("Error al actualizar respuesta de gerencia:", error);
