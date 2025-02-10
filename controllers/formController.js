@@ -12,7 +12,8 @@ const upload = multer({ storage });
  */
 const crearFormulario = async (req, res) => {
   try {
-    const { fecha, director, gerencia } = req.body;
+    // Se incluye el campo "descripcion" junto con los demás datos
+    const { fecha, director, gerencia, descripcion } = req.body;
     const file = req.file;
 
     if (!file) {
@@ -44,7 +45,7 @@ const crearFormulario = async (req, res) => {
 
     const documentoUrl = publicUrlData.publicUrl;
 
-    // Insertar registro en la base de datos
+    // Insertar registro en la base de datos, incluyendo el nuevo campo "descripcion"
     const { data, error } = await supabase
       .from('yuli')
       .insert({
@@ -52,6 +53,7 @@ const crearFormulario = async (req, res) => {
         documento: documentoUrl,
         director,
         gerencia,
+        descripcion, // nuevo campo
         estado: 'pendiente',
         observacion: '',
         role: 'creador'
@@ -85,8 +87,16 @@ const crearFormulario = async (req, res) => {
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
     const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director?decision=rechazado`;
 
-    // Enviar correo al director con enlaces para aprobar o rechazar
-    const html = generarHtmlCorreoDirector({ fecha, documento: documentoUrl, gerencia, workflow_id, approvalLink, rejectionLink });
+    // Enviar correo al director, incluyendo el campo "descripcion"
+    const html = generarHtmlCorreoDirector({
+      fecha,
+      documento: documentoUrl,
+      gerencia,
+      workflow_id,
+      descripcion,  // se pasa al template del correo
+      approvalLink,
+      rejectionLink
+    });
     await sendEmail(director, "Nueva Solicitud de Aprobación", html);
 
     res.status(201).json({ message: "Formulario creado y correo enviado al director", workflow_id });
@@ -152,7 +162,6 @@ const respuestaDirector = async (req, res) => {
       })
       .eq('workflow_id', workflow_id);
 
-
     if (error) {
       console.error("Error al actualizar respuesta del director:", error);
       return res.status(500).json({ error: error.message });
@@ -161,7 +170,15 @@ const respuestaDirector = async (req, res) => {
     // Generar enlaces para la gerencia
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`;
     const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
-    const html = generarHtmlCorreoGerencia({ fecha: formRecord.fecha, documento: formRecord.documento, director: formRecord.director, workflow_id, approvalLink, rejectionLink });
+    const html = generarHtmlCorreoGerencia({
+      fecha: formRecord.fecha,
+      documento: formRecord.documento,
+      director: formRecord.director,
+      workflow_id,
+      descripcion: formRecord.descripcion, // incluir la descripción en el correo a gerencia
+      approvalLink,
+      rejectionLink
+    });
     await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
 
     return res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
@@ -206,7 +223,6 @@ const respuestaGerencia = async (req, res) => {
       })
       .eq('workflow_id', workflow_id);
 
-
     if (error) {
       console.error("Error al actualizar respuesta de gerencia:", error);
       return res.status(500).json({ error: error.message });
@@ -243,9 +259,9 @@ const obtenerHistorial = async (req, res) => {
   }
 };
 
-
-
-// Obtener todas las solicitudes
+/**
+ * Obtener todas las solicitudes
+ */
 const obtenerTodasLasSolicitudes = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -264,7 +280,6 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
-
 
 /**
  * Actualiza la observación de un formulario.
