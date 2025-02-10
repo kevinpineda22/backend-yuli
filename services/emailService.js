@@ -31,28 +31,88 @@ export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
 };
 
 export const generarHtmlCorreoDirector = (formData) => `
-  <html>
-    <body style="font-family: Arial, sans-serif;">
-      <h2>Solicitud de Aprobación - Director de Área</h2>
-      <p><strong>Fecha:</strong> ${formData.fecha}</p>
-      <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
-      <p><strong>Gerencia:</strong> ${formData.gerencia}</p>
-      <p>Por favor, revisa la solicitud y toma una decisión:</p>
-      <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/director" target="_blank">Aprobar o Rechazar Solicitud</a>
-    </body>
-  </html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Solicitud de Aprobación - Director de Área</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f2f2f2;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#f2f2f2;">
+      <tr>
+        <td align="center">
+          <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
+            <!-- Encabezado -->
+            <tr>
+              <td align="center" style="padding:20px; background-color:#1a73e8;">
+                <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Director de Área</h2>
+              </td>
+            </tr>
+            <!-- Contenido -->
+            <tr>
+              <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
+                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
+                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#1a73e8; text-decoration:none;">Ver Documento</a></p>
+                <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${formData.gerencia}</p>
+                <p style="margin:0 0 20px 0;">Por favor, revisa la solicitud y toma una decisión:</p>
+                <div style="text-align:center;">
+                  <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/director" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#1a73e8; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
+                </div>
+              </td>
+            </tr>
+            <!-- Pie de página -->
+            <tr>
+              <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
+                &copy; ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
 `;
 
 
 export const generarHtmlCorreoGerencia = (formData) => `
-  <html>
-    <body style="font-family: Arial, sans-serif;">
-      <h2>Solicitud de Aprobación - Gerencia</h2>
-      <p><strong>Fecha:</strong> ${formData.fecha}</p>
-      <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank">Ver Documento</a></p>
-      <p><strong>Director:</strong> ${formData.director}</p>
-      <p>Por favor, revisa la solicitud y toma una decisión:</p>
-      <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/gerencia" target="_blank">Aprobar o Rechazar Solicitud</a>
-    </body>
-  </html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Solicitud de Aprobación - Gerencia</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f2f2f2;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#f2f2f2;">
+      <tr>
+        <td align="center">
+          <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
+            <!-- Encabezado -->
+            <tr>
+              <td align="center" style="padding:20px; background-color:#1a73e8;">
+                <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Gerencia</h2>
+              </td>
+            </tr>
+            <!-- Contenido -->
+            <tr>
+              <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
+                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
+                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#1a73e8; text-decoration:none;">Ver Documento</a></p>
+                <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${formData.director}</p>
+                <p style="margin:0 0 20px 0;">Por favor, revisa la solicitud y toma una decisión:</p>
+                <div style="text-align:center;">
+                  <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/gerencia" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#1a73e8; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
+                </div>
+              </td>
+            </tr>
+            <!-- Pie de página -->
+            <tr>
+              <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
+                &copy; ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
 `;
