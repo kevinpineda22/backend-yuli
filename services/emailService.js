@@ -51,8 +51,7 @@ export const generarHtmlCorreoDirector = (formData) => `
  }
             <tr>
               <td align="center" style="padding:15px; background-color:#FFD700;">
-                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;"> Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil.
-              Ejemplo: Si es de responsabilidades que función requiere el cambio, entre otros.</p>
+                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil. Ejemplo: Si es de responsabilidades que función requiere el cambio, entre otros. 
               </td>
             </tr>
             <!-- Contenido -->
@@ -110,8 +109,8 @@ export const generarHtmlCorreoGerencia = (formData) => `
              
             <tr>
               <td align="center" style="padding:15px; background-color:#FFD700;">
-                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;"> Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil.
-              Ejemplo: Si es de responsabilidades que función requiere el cambio, entre otros.
+                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil. Ejemplo: Si es de responsabilidades que función requiere el cambio, entre otros.
+              
                 </p>
               </td>
             </tr>
