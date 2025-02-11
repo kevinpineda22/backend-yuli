@@ -110,11 +110,11 @@ export const generarHtmlCorreoGerencia = (formData) => `
             <!-- Nota Importante -->
              
             <tr>
-              <td align="center" style="padding:15px; background-color:#FFD700;">
-                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil. Ejemplo: Si es de responsabilidades que función requiere el cambio, entre otros.
-              
-                </p>
-              </td>
+               <td align="center" style="padding:15px; background-color:#FFD700;">
+         <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
+            Recordar ser muy específico con el cambio que se sugiere generar, ubicación del perfil. Ejemplo: si es de responsabilidades, ¿qué función requiere el cambio?, entre otros.
+            </p>
+          </td>
             </tr>
             <!-- Contenido -->
             <tr>
