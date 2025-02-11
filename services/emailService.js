@@ -47,6 +47,17 @@ export const generarHtmlCorreoDirector = (formData) => `
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Director de Área</h2>
               </td>
             </tr>
+            <!-- Nota Importante -->
+              <p>
+              Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil.
+              Ejemplo: Si es de responsabilidades que función requiere el cambio.
+                
+              </p>
+            <tr>
+              <td align="center" style="padding:15px; background-color:#FFD700;">
+                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">¡Atención!</p>
+              </td>
+            </tr>
             <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
@@ -88,6 +99,17 @@ export const generarHtmlCorreoGerencia = (formData) => `
             <tr>
               <td align="center" style="padding:20px; background-color:#210D65;">
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Gerencia</h2>
+              </td>
+            </tr>
+            <!-- Nota Importante -->
+              <p>
+              Recordar ser muy especifico con el cambio que se sugiere generar, ubicacion del perfil.
+              Ejemplo: Si es de responsabilidades que función requiere el cambio.
+                
+              </p>
+            <tr>
+              <td align="center" style="padding:15px; background-color:#FFD700;">
+                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">¡Atención!</p>
               </td>
             </tr>
             <!-- Contenido -->
