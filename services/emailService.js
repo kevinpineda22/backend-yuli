@@ -48,7 +48,7 @@ export const generarHtmlCorreoDirector = (formData) => `
               </td>
             </tr>
             <!-- Nota Importante -->
- }
+ 
            <tr>
   <td align="center" style="padding:15px; background-color:#FFD700;">
     <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
