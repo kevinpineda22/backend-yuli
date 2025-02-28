@@ -1,11 +1,11 @@
 // services/emailService.js
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -25,7 +25,7 @@ export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
     });
     console.log(`📨 Correo enviado a ${to}`);
   } catch (error) {
-    console.error('❌ Error al enviar el correo:', error);
+    console.error("❌ Error al enviar el correo:", error);
     throw error;
   }
 };
@@ -47,15 +47,32 @@ export const generarHtmlCorreoDirector = (formData) => `
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Director de Área</h2>
               </td>
             </tr>
+            <!-- Nota Importante -->
+ 
+           <tr>
+  <td align="center" style="padding:15px; background-color:#FFD700;">
+    <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
+      Recordar ser muy específico con el cambio que se sugiere generar, ubicación del perfil. Ejemplo: si es de responsabilidades, ¿qué función requiere el cambio?, entre otros.
+    </p>
+  </td>
+</tr>
             <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
-                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
-                <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${formData.gerencia}</p>
+                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${
+                  formData.fecha
+                }</p>
+                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${
+                  formData.documento
+                }" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
+                <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${
+                  formData.gerencia
+                }</p>
                 <p style="margin:0 0 20px 0;">Por favor, revisa la solicitud y toma una decisión:</p>
                 <div style="text-align:center;">
-                  <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/director" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#210D65; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
+                  <a href="https://www.merkahorro.com/dgdecision/${
+                    formData.workflow_id
+                  }/director" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#210D65; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
                 </div>
               </td>
             </tr>
@@ -90,15 +107,32 @@ export const generarHtmlCorreoGerencia = (formData) => `
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Gerencia</h2>
               </td>
             </tr>
+            <!-- Nota Importante -->
+             
+            <tr>
+               <td align="center" style="padding:15px; background-color:#FFD700;">
+         <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
+            Recordar ser muy específico con el cambio que se sugiere generar, ubicación del perfil. Ejemplo: si es de responsabilidades, ¿qué función requiere el cambio?, entre otros.
+            </p>
+          </td>
+            </tr>
             <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
-                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
-                <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${formData.director}</p>
+                <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${
+                  formData.fecha
+                }</p>
+                <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${
+                  formData.documento
+                }" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
+                <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${
+                  formData.director
+                }</p>
                 <p style="margin:0 0 20px 0;">Por favor, revisa la solicitud y toma una decisión:</p>
                 <div style="text-align:center;">
-                  <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/gerencia" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#210D65; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
+                  <a href="https://www.merkahorro.com/dgdecision/${
+                    formData.workflow_id
+                  }/gerencia" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#210D65; color:#ffffff; text-decoration:none; border-radius:4px;">Aprobar o Rechazar Solicitud</a>
                 </div>
               </td>
             </tr>
