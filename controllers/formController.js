@@ -112,10 +112,14 @@ const respuestaArea = async (req, res) => {
     const decision = req.query.decision || req.body.decision;
     const { observacion } = req.body;
 
+    console.log("Datos recibidos en respuestaArea:", { workflow_id, decision, observacion });
+
     if (!['aprobado', 'rechazado'].includes(decision)) {
+      console.error("Decisión inválida recibida:", decision);
       return res.status(400).json({ error: "Decisión inválida" });
     }
 
+    console.log("Consultando formulario en Supabase con workflow_id:", workflow_id);
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
@@ -129,7 +133,10 @@ const respuestaArea = async (req, res) => {
       return res.status(500).json({ error: fetchError.message });
     }
 
+    console.log("Formulario encontrado:", formRecord);
+
     if (decision === 'rechazado') {
+      console.log("Actualizando estado a 'rechazado por area'");
       const { error } = await supabase
         .from('yuli')
         .update({
@@ -139,11 +146,14 @@ const respuestaArea = async (req, res) => {
         })
         .eq('workflow_id', workflow_id);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error("Error al actualizar estado:", error);
+        return res.status(500).json({ error: error.message });
+      }
       return res.json({ message: "Formulario rechazado por el área" });
     }
 
-    // Si el área aprueba, pasar al director
+    console.log("Actualizando estado a 'aprobado por area'");
     const { error } = await supabase
       .from('yuli')
       .update({
@@ -152,7 +162,10 @@ const respuestaArea = async (req, res) => {
       })
       .eq('workflow_id', workflow_id);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      console.error("Error al actualizar estado:", error);
+      return res.status(500).json({ error: error.message });
+    }
 
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
     const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
@@ -166,11 +179,12 @@ const respuestaArea = async (req, res) => {
       approvalLink,
       rejectionLink
     });
+    console.log("Enviando correo a director:", formRecord.director);
     await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", html);
 
     return res.json({ message: "Decisión del área registrada y correo enviado al director" });
   } catch (err) {
-    console.error("Error en respuestaArea:", err);
+    console.error("Error general en respuestaArea:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
