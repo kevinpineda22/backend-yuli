@@ -149,3 +149,58 @@ export const generarHtmlCorreoGerencia = (formData) => `
   </body>
 </html>
 `;
+
+export const generarHtmlCorreoArea = (formData) => `
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Solicitud Inicial - Validación de Área</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f2f2f2;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#f2f2f2;">
+      <tr>
+        <td align="center">
+          <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
+            <tr>
+              <td align="center" style="padding:20px; background-color:#210D65;">
+                <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">
+                  Validación Inicial de Solicitud - Área Responsable
+                </h2>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:15px; background-color:#FFD700;">
+                <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold;">
+                  Revisa cuidadosamente el documento adjunto antes de tomar una decisión.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
+                <p><strong>Fecha:</strong> ${formData.fecha}</p>
+                <p><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
+                <p><strong>Descripción:</strong> ${formData.descripcion}</p>
+                <p style="margin-top:20px;">Por favor, revisa y responde a esta solicitud:</p>
+                <div style="text-align:center;">
+                  <a href="https://www.merkahorro.com/dgdecision/${formData.workflow_id}/area" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#210D65; color:#ffffff; text-decoration:none; border-radius:4px;">
+                    Aceptar o Rechazar Solicitud
+                  </a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
+                &copy; ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`;
+
