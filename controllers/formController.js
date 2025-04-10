@@ -9,18 +9,20 @@ const upload = multer({ storage });
 
 /**
  * Crea un formulario, sube el archivo a Supabase y envía correo al área primero
- */
-const crearFormulario = async (req, res) => {
+ */const crearFormulario = async (req, res) => {
   try {
+    console.log("Datos recibidos en el backend:", req.body, req.file); // Log para verificar datos entrantes
     const { fecha, director, gerencia, descripcion, area } = req.body;
     const file = req.file;
 
     if (!file) {
+      console.error("No se recibió archivo");
       return res.status(400).json({ error: 'No se recibió ningún archivo' });
     }
 
     // Subir el archivo a Supabase Storage
     const fileName = `${Date.now()}_${file.originalname}`;
+    console.log("Subiendo archivo a Supabase:", fileName);
     const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('pdfs-yuli')
@@ -43,7 +45,8 @@ const crearFormulario = async (req, res) => {
 
     const documentoUrl = publicUrlData.publicUrl;
 
-    // Insertar registro con el campo area
+    // Insertar registro en la base de datos
+    console.log("Insertando en Supabase:", { fecha, director, gerencia, area, descripcion });
     const { data, error } = await supabase
       .from('yuli')
       .insert({
@@ -76,10 +79,9 @@ const crearFormulario = async (req, res) => {
       return res.status(500).json({ error: updateError.message });
     }
 
-    // Enviar correo al área primero
+    // Enviar correo al área
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area`;
     const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area`;
-
     const html = generarHtmlCorreoArea({
       fecha,
       documento: documentoUrl,
@@ -91,6 +93,7 @@ const crearFormulario = async (req, res) => {
       approvalLink,
       rejectionLink
     });
+    console.log("Enviando correo a:", area);
     await sendEmail(area, "Nueva Solicitud de Aprobación - Área", html);
 
     res.status(201).json({ message: "Formulario creado y correo enviado al área", workflow_id });
