@@ -136,22 +136,22 @@ const respuestaArea = async (req, res) => {
     console.log("Formulario encontrado:", formRecord);
 
     if (decision === 'rechazado') {
-      console.log("Actualizando estado a 'rechazado por area'");
       const { error } = await supabase
         .from('yuli')
         .update({
-          estado: 'rechazado por area',
-          observacion: observacion || '',
-          rechazadoPor: formRecord.area
+          estado: `rechazado por area (${formRecord.area})`,
+          observacion: observacion || ''
         })
         .eq('workflow_id', workflow_id);
-
+    
       if (error) {
         console.error("Error al actualizar estado:", error);
         return res.status(500).json({ error: error.message });
       }
+    
       return res.json({ message: "Formulario rechazado por el área" });
     }
+    
 
     console.log("Actualizando estado a 'aprobado por area'");
     const { error } = await supabase
@@ -219,15 +219,15 @@ const respuestaDirector = async (req, res) => {
       const { error } = await supabase
         .from('yuli')
         .update({
-          estado: 'rechazado por director',
-          observacion: observacion || '',
-          rechazadoPor: formRecord.director
+          estado: `rechazado por director (${formRecord.director})`,
+          observacion: observacion || ''
         })
         .eq('workflow_id', workflow_id);
-
+    
       if (error) return res.status(500).json({ error: error.message });
       return res.json({ message: "Formulario rechazado por el director" });
     }
+    
 
     const { error } = await supabase
       .from('yuli')
@@ -285,19 +285,21 @@ const respuestaGerencia = async (req, res) => {
       return res.status(400).json({ error: "El director aún no ha aprobado esta solicitud" });
     }
 
-    const newEstado = decision === 'aprobado' ? 'aprobado por todos' : 'rechazado por gerencia';
-    const { error } = await supabase
-      .from('yuli')
-      .update({
-        estado: newEstado,
-        observacion: observacion || formRecord.observacion,
-        ...(decision === 'rechazado' && { rechazadoPor: formRecord.gerencia })
-      })
-      .eq('workflow_id', workflow_id);
-
-    if (error) return res.status(500).json({ error: error.message });
-
-    res.json({ message: `Formulario ${newEstado}` });
+    const newEstado = decision === 'aprobado'
+    ? 'aprobado por todos'
+    : `rechazado por gerencia (${formRecord.gerencia})`;
+  
+  const { error } = await supabase
+    .from('yuli')
+    .update({
+      estado: newEstado,
+      observacion: observacion || formRecord.observacion
+    })
+    .eq('workflow_id', workflow_id);
+  
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: `Formulario ${newEstado}` });
+  
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
     res.status(500).json({ error: "Error interno del servidor" });
