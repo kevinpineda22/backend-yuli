@@ -1,332 +1,314 @@
+// controllers/formController.js
 import multer from 'multer';
-import supabase from '../config/supabaseCliente.js';
-import { 
-  sendEmail, 
-  generarHtmlCorreoArea, 
-  generarHtmlCorreoDirector, 
-  generarHtmlCorreoGerencia 
-} from '../services/emailService.js';
+import { sendEmail, generarHtmlCorreoArea, generarHtmlCorreoDirector, generarHtmlCorreoGerencia } from '../services/emailService.js';
+import supabase from '../supabaseCliente.js';
 
-// Configuración de Multer para manejar la carga de archivos
+// Configuración de multer para manejar archivos en memoria
 const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-    files: 1
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Solo se permiten archivos PDF'), false);
-    }
-  }
-});
+const upload = multer({ storage });
 
-// Función para validar campos requeridos
-const validateRequiredFields = (body, requiredFields) => {
-  const missingFields = requiredFields.filter(field => !body[field]);
-  if (missingFields.length > 0) {
-    throw new Error(`Faltan campos requeridos: ${missingFields.join(', ')}`);
-  }
-};
-
-// Controlador para crear formulario
+/**
+ * Crea un formulario, sube el archivo a Supabase y envía correo al área primero
+ */
 const crearFormulario = async (req, res) => {
   try {
-    const requiredFields = ['fecha', 'director', 'gerencia', 'descripcion', 'area'];
-    validateRequiredFields(req.body, requiredFields);
+    const { fecha, director, gerencia, descripcion, area } = req.body;
+    const file = req.file;
 
-    if (!req.file) {
-      throw new Error('No se recibió ningún archivo PDF');
+    if (!file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo' });
     }
 
-    // Subir archivo a Supabase Storage
-    const fileName = `${Date.now()}_${req.file.originalname}`;
-    const { error: uploadError } = await supabase.storage
+    // Subir el archivo a Supabase Storage
+    const fileName = `${Date.now()}_${file.originalname}`;
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
       .from('pdfs-yuli')
-      .upload(fileName, req.file.buffer, {
-        contentType: req.file.mimetype,
-        upsert: false
-      });
+      .upload(fileName, file.buffer, { contentType: file.mimetype });
 
-    if (uploadError) throw new Error(`Error al subir archivo: ${uploadError.message}`);
+    if (uploadError) {
+      console.error('Error al subir el archivo:', uploadError);
+      return res.status(500).json({ error: 'Error al subir el archivo a Supabase' });
+    }
 
-    // Obtener URL pública del archivo
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData, error: publicUrlError } = supabase
+      .storage
       .from('pdfs-yuli')
       .getPublicUrl(fileName);
 
-    // Insertar registro en la base de datos
-    const { data, error: insertError } = await supabase
+    if (publicUrlError) {
+      console.error('Error al obtener URL pública:', publicUrlError);
+      return res.status(500).json({ error: 'Error al obtener la URL pública' });
+    }
+
+    const documentoUrl = publicUrlData.publicUrl;
+
+    // Insertar registro con el campo area
+    const { data, error } = await supabase
       .from('yuli')
       .insert({
-        ...req.body,
-        documento: publicUrlData.publicUrl,
-        estado: 'pendiente por área',
+        fecha,
+        documento: documentoUrl,
+        director,
+        gerencia,
+        area,
+        descripcion,
+        estado: 'pendiente por area',
         observacion: '',
         role: 'creador'
       })
       .select()
       .single();
 
-    if (insertError) throw new Error(`Error al insertar registro: ${insertError.message}`);
+    if (error) {
+      console.error("Error al insertar formulario:", error);
+      return res.status(500).json({ error: error.message });
+    }
 
-    // Actualizar workflow_id
     const workflow_id = data.id;
-    await supabase
+    const { error: updateError } = await supabase
       .from('yuli')
       .update({ workflow_id })
       .eq('id', workflow_id);
 
-    // Enviar correo electrónico al área
-    const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area`;
-    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area?decision=rechazado`;
+    if (updateError) {
+      console.error("Error al actualizar workflow_id:", updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
 
-    const html = generarHtmlCorreoArea({ 
-      ...req.body,
-      documento: publicUrlData.publicUrl,
+    // Enviar correo al área primero
+    const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area`;
+    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/area`;
+
+    const html = generarHtmlCorreoArea({
+      fecha,
+      documento: documentoUrl,
+      director,
+      gerencia,
+      area,
       workflow_id,
+      descripcion,
       approvalLink,
       rejectionLink
     });
+    await sendEmail(area, "Nueva Solicitud de Aprobación - Área", html);
 
-    await sendEmail(req.body.area, "Nueva Solicitud para Validación de Área", html);
-
-    res.status(201).json({
-      success: true,
-      message: "Solicitud enviada al área",
-      workflow_id,
-      documentoUrl: publicUrlData.publicUrl
-    });
-
-  } catch (error) {
-    console.error('Error en crearFormulario:', error);
-    res.status(error.message.includes('Faltan campos') ? 400 : 500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(201).json({ message: "Formulario creado y correo enviado al área", workflow_id });
+  } catch (err) {
+    console.error("Error en crearFormulario:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para respuesta del área
+/**
+ * Maneja la respuesta del área
+ */
 const respuestaArea = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const decision = req.query.decision || req.body.decision;
-    const { observacion = '' } = req.body;
+    const { observacion } = req.body;
 
     if (!['aprobado', 'rechazado'].includes(decision)) {
-      throw new Error('Decisión inválida. Debe ser "aprobado" o "rechazado"');
+      return res.status(400).json({ error: "Decisión inválida" });
     }
 
-    // Obtener el registro actual
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
+      .order('id', { ascending: true })
+      .limit(1)
       .single();
 
-    if (fetchError) throw new Error(`Error al obtener registro: ${fetchError.message}`);
-
-    // Actualizar estado según la decisión
-    if (decision === 'rechazado') {
-      await supabase
-        .from('yuli')
-        .update({ estado: 'rechazado', observacion })
-        .eq('workflow_id', workflow_id);
-      
-      return res.json({ 
-        success: true,
-        message: "Rechazado por área" 
-      });
+    if (fetchError) {
+      console.error("Error al obtener formulario:", fetchError);
+      return res.status(500).json({ error: fetchError.message });
     }
 
-    // Si es aprobado, actualizar estado y enviar al director
-    await supabase
+    if (decision === 'rechazado') {
+      const { error } = await supabase
+        .from('yuli')
+        .update({
+          estado: 'rechazado por area',
+          observacion: observacion || '',
+          rechazadoPor: formRecord.area
+        })
+        .eq('workflow_id', workflow_id);
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ message: "Formulario rechazado por el área" });
+    }
+
+    // Si el área aprueba, pasar al director
+    const { error } = await supabase
       .from('yuli')
-      .update({ estado: 'aprobado por área', observacion })
+      .update({
+        estado: 'aprobado por area',
+        observacion: observacion || ''
+      })
       .eq('workflow_id', workflow_id);
 
+    if (error) return res.status(500).json({ error: error.message });
+
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
-    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director?decision=rechazado`;
-    
-    const html = generarHtmlCorreoDirector({ 
+    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/director`;
+    const html = generarHtmlCorreoDirector({
       fecha: formRecord.fecha,
       documento: formRecord.documento,
+      gerencia: formRecord.gerencia,
+      area: formRecord.area,
       workflow_id,
       descripcion: formRecord.descripcion,
-      gerencia: formRecord.gerencia,
       approvalLink,
       rejectionLink
     });
+    await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", html);
 
-    await sendEmail(
-      formRecord.director, 
-      "Solicitud de Aprobación - Director", 
-      html
-    );
-
-    res.json({ 
-      success: true,
-      message: "Aprobado por área. Enviado a director." 
-    });
-
-  } catch (error) {
-    console.error('Error en respuestaArea:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.json({ message: "Decisión del área registrada y correo enviado al director" });
+  } catch (err) {
+    console.error("Error en respuestaArea:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para respuesta del director
+/**
+ * Maneja la respuesta del director
+ */
 const respuestaDirector = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const decision = req.query.decision || req.body.decision;
-    const { observacion = '' } = req.body;
+    const { observacion } = req.body;
 
     if (!['aprobado', 'rechazado'].includes(decision)) {
-      throw new Error('Decisión inválida. Debe ser "aprobado" o "rechazado"');
+      return res.status(400).json({ error: "Decisión inválida" });
     }
 
-    // Obtener el registro actual
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
+      .order('id', { ascending: true })
+      .limit(1)
       .single();
 
-    if (fetchError) throw new Error(`Error al obtener registro: ${fetchError.message}`);
-
-    // Validar que el área haya aprobado primero
-    if (formRecord.estado !== 'aprobado por área') {
-      throw new Error('No autorizado. El área no ha aprobado aún.');
+    if (fetchError) return res.status(500).json({ error: fetchError.message });
+    if (formRecord.estado !== 'aprobado por area') {
+      return res.status(400).json({ error: "El área aún no ha aprobado esta solicitud" });
     }
 
-    // Actualizar estado según la decisión
     if (decision === 'rechazado') {
-      await supabase
+      const { error } = await supabase
         .from('yuli')
-        .update({ estado: 'rechazado', observacion })
+        .update({
+          estado: 'rechazado por director',
+          observacion: observacion || '',
+          rechazadoPor: formRecord.director
+        })
         .eq('workflow_id', workflow_id);
-      
-      return res.json({ 
-        success: true,
-        message: "Rechazado por director" 
-      });
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ message: "Formulario rechazado por el director" });
     }
 
-    // Si es aprobado, actualizar estado y enviar a gerencia
-    await supabase
+    const { error } = await supabase
       .from('yuli')
-      .update({ estado: 'aprobado por director', observacion })
+      .update({
+        estado: 'aprobado por director',
+        observacion: observacion || formRecord.observacion
+      })
       .eq('workflow_id', workflow_id);
 
+    if (error) return res.status(500).json({ error: error.message });
+
     const approvalLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`;
-    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia?decision=rechazado`;
-    
-    const html = generarHtmlCorreoGerencia({ 
+    const rejectionLink = `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`;
+    const html = generarHtmlCorreoGerencia({
       fecha: formRecord.fecha,
       documento: formRecord.documento,
+      director: formRecord.director,
+      area: formRecord.area,
       workflow_id,
       descripcion: formRecord.descripcion,
-      director: formRecord.director,
       approvalLink,
       rejectionLink
     });
+    await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
 
-    await sendEmail(
-      formRecord.gerencia, 
-      "Solicitud de Aprobación - Gerencia", 
-      html
-    );
-
-    res.json({ 
-      success: true,
-      message: "Aprobado por director. Enviado a gerencia." 
-    });
-
-  } catch (error) {
-    console.error('Error en respuestaDirector:', error);
-    res.status(error.message.includes('No autorizado') ? 403 : 500).json({
-      success: false,
-      error: error.message
-    });
+    return res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
+  } catch (err) {
+    console.error("Error en respuestaDirector:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para respuesta de gerencia
+/**
+ * Maneja la respuesta de gerencia
+ */
 const respuestaGerencia = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    const { decision, observacion = '' } = req.body;
+    const { decision, observacion } = req.body;
 
     if (!['aprobado', 'rechazado'].includes(decision)) {
-      throw new Error('Decisión inválida. Debe ser "aprobado" o "rechazado"');
+      return res.status(400).json({ error: "Decisión inválida" });
     }
 
-    // Obtener el registro actual
     const { data: formRecord, error: fetchError } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
+      .order('id', { ascending: true })
+      .limit(1)
       .single();
 
-    if (fetchError) throw new Error(`Error al obtener registro: ${fetchError.message}`);
+    if (fetchError) return res.status(500).json({ error: fetchError.message });
+    if (formRecord.estado !== 'aprobado por director') {
+      return res.status(400).json({ error: "El director aún no ha aprobado esta solicitud" });
+    }
 
-    // Actualizar estado según la decisión
-    const newEstado = decision === 'aprobado' ? 'aprobado por ambos' : 'rechazado';
-    await supabase
+    const newEstado = decision === 'aprobado' ? 'aprobado por todos' : 'rechazado por gerencia';
+    const { error } = await supabase
       .from('yuli')
-      .update({ estado: newEstado, observacion })
+      .update({
+        estado: newEstado,
+        observacion: observacion || formRecord.observacion,
+        ...(decision === 'rechazado' && { rechazadoPor: formRecord.gerencia })
+      })
       .eq('workflow_id', workflow_id);
 
-    res.json({ 
-      success: true,
-      message: `Formulario ${newEstado}` 
-    });
+    if (error) return res.status(500).json({ error: error.message });
 
-  } catch (error) {
-    console.error('Error en respuestaGerencia:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.json({ message: `Formulario ${newEstado}` });
+  } catch (err) {
+    console.error("Error en respuestaGerencia:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para obtener historial de un workflow
+// Las siguientes funciones no necesitan cambios adicionales ya que funcionan con el flujo existente
 const obtenerHistorial = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-
     const { data, error } = await supabase
       .from('yuli')
       .select('*')
       .eq('workflow_id', workflow_id)
       .order('created_at', { ascending: true });
 
-    if (error) throw new Error(`Error al obtener historial: ${error.message}`);
+    if (error) {
+      console.error("Error al obtener historial:", error);
+      return res.status(500).json({ error: error.message });
+    }
 
-    res.json({ 
-      success: true,
-      historial: data 
-    });
-
-  } catch (error) {
-    console.error('Error en obtenerHistorial:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.json({ historial: data });
+  } catch (err) {
+    console.error("Error en obtenerHistorial:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para obtener todas las solicitudes
 const obtenerTodasLasSolicitudes = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -334,50 +316,37 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(`Error al obtener solicitudes: ${error.message}`);
+    if (error) {
+      console.error("Error al obtener todas las solicitudes:", error);
+      return res.status(500).json({ error: error.message });
+    }
 
-    res.json({ 
-      success: true,
-      historial: data 
-    });
-
-  } catch (error) {
-    console.error('Error en obtenerTodasLasSolicitudes:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.json({ historial: data });
+  } catch (err) {
+    console.error("Error en obtenerTodasLasSolicitudes:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-// Controlador para actualizar observación
 const actualizarObservacion = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { observacion } = req.body;
-
-    if (!observacion) {
-      throw new Error('La observación es requerida');
-    }
 
     const { error } = await supabase
       .from('yuli')
       .update({ observacion })
       .eq('workflow_id', workflow_id);
 
-    if (error) throw new Error(`Error al actualizar observación: ${error.message}`);
+    if (error) {
+      console.error("Error al actualizar la observación:", error);
+      return res.status(500).json({ error: error.message });
+    }
 
-    res.json({ 
-      success: true,
-      message: "Observación actualizada correctamente" 
-    });
-
-  } catch (error) {
-    console.error('Error en actualizarObservacion:', error);
-    res.status(error.message.includes('requerida') ? 400 : 500).json({
-      success: false,
-      error: error.message
-    });
+    res.json({ message: "Observación actualizada correctamente" });
+  } catch (err) {
+    console.error("Error en actualizarObservacion:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
