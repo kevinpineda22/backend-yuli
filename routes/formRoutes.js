@@ -17,6 +17,6 @@ router.get('/yuli/:workflow_id', obtenerHistorial);              // Historial de
 router.get('/yuli', obtenerTodasLasSolicitudes);                 // Todas las solicitudes
 
 router.post('/yuli/resend/:id', upload.single('documento'), reenviarFormulario);
-router.put('/yuli/:id', actualizarFormulario);
+router.put('/yuli/:id', upload.single('documento'), actualizarFormulario);
 
 export default router;
