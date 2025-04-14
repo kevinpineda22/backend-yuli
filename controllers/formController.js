@@ -297,28 +297,48 @@ const actualizarFormulario = async (req, res) => {
   try {
     const { id } = req.params;
     const { fecha, director, gerencia, descripcion, area } = req.body;
+    const file = req.file;
+
+    let documentoUrl;
+
+    if (file) {
+      const fileName = `${Date.now()}_${file.originalname}`;
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, file.buffer, { contentType: file.mimetype });
+
+      if (uploadError) return res.status(500).json({ error: 'Error al subir el archivo' });
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      documentoUrl = publicUrlData.publicUrl;
+    }
+
+    const updateFields = {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      area
+    };
+
+    if (documentoUrl) updateFields.documento = documentoUrl;
 
     const { data, error } = await supabase
       .from('yuli')
-      .update({
-        fecha,
-        director,
-        gerencia,
-        descripcion,
-        area
-      })
+      .update(updateFields)
       .eq('id', id)
       .select()
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
 
-    res.json({ message: "Solicitud actualizada correctamente", data });
+    res.json({ message: "✅ Solicitud actualizada correctamente", data });
   } catch (err) {
     console.error("Error al actualizar solicitud:", err);
     res.status(500).json({ error: "Error interno al actualizar solicitud" });
   }
 };
+
 
 
 export {
