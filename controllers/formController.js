@@ -224,6 +224,76 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
   }
 };
 
+const reenviarFormulario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha, director, gerencia, descripcion, area } = req.body;
+    const file = req.file;
+
+    // Subir nuevo archivo si viene
+    let documentoUrl = null;
+
+    if (file) {
+      const fileName = `${Date.now()}_${file.originalname}`;
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, file.buffer, { contentType: file.mimetype });
+
+      if (uploadError) return res.status(500).json({ error: 'Error al subir archivo' });
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      documentoUrl = publicUrlData.publicUrl;
+    }
+
+    // Construcción de campos actualizados y reseteo de flujo
+    const updates = {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      area,
+      estado: 'pendiente por area',
+      observacion_area: null,
+      observacion_director: null,
+      observacion_gerencia: null,
+    };
+
+    if (documentoUrl) updates.documento = documentoUrl;
+
+    const { data: updated, error: updateError } = await supabase
+      .from('yuli')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) return res.status(500).json({ error: updateError.message });
+
+    const workflow_id = updated.workflow_id;
+
+    // Generar y enviar correo al área
+    const html = generarHtmlCorreoArea({
+      fecha: updated.fecha,
+      documento: updated.documento,
+      director: updated.director,
+      gerencia: updated.gerencia,
+      area: updated.area,
+      workflow_id,
+      descripcion: updated.descripcion,
+      approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
+      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
+    });
+
+    await sendEmail(updated.area, "📨 Reenvío de Solicitud Editada - Área", html);
+
+    res.json({ message: "✅ Solicitud reenviada, flujo reiniciado y correo enviado al área." });
+  } catch (err) {
+    console.error("Error al reenviar solicitud:", err);
+    res.status(500).json({ error: "Error interno al reenviar solicitud" });
+  }
+};
+
+
 export {
   crearFormulario,
   respuestaArea,
@@ -231,5 +301,6 @@ export {
   respuestaGerencia,
   obtenerHistorial,
   obtenerTodasLasSolicitudes,
-  upload
+  upload,
+  reenviarFormulario
 };
