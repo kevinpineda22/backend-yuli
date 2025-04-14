@@ -1,6 +1,6 @@
 // routes/formRoutes.js
 import express from 'express';
-import { crearFormulario, respuestaArea, respuestaDirector, respuestaGerencia, obtenerHistorial, obtenerTodasLasSolicitudes, upload, reenviarFormulario } from '../controllers/formController.js';
+import { crearFormulario, respuestaArea, respuestaDirector, respuestaGerencia, obtenerHistorial, obtenerTodasLasSolicitudes, upload, reenviarFormulario, actualizarFormulario } from '../controllers/formController.js';
 
 const router = express.Router();
 
@@ -17,5 +17,6 @@ router.get('/yuli/:workflow_id', obtenerHistorial);              // Historial de
 router.get('/yuli', obtenerTodasLasSolicitudes);                 // Todas las solicitudes
 
 router.post('/yuli/resend/:id', upload.single('documento'), reenviarFormulario);
+router.put('/yuli/:id', actualizarFormulario);
 
 export default router;

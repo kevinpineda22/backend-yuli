@@ -293,6 +293,33 @@ const reenviarFormulario = async (req, res) => {
   }
 };
 
+const actualizarFormulario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha, director, gerencia, descripcion, area } = req.body;
+
+    const { data, error } = await supabase
+      .from('yuli')
+      .update({
+        fecha,
+        director,
+        gerencia,
+        descripcion,
+        area
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json({ message: "Solicitud actualizada correctamente", data });
+  } catch (err) {
+    console.error("Error al actualizar solicitud:", err);
+    res.status(500).json({ error: "Error interno al actualizar solicitud" });
+  }
+};
+
 
 export {
   crearFormulario,
@@ -302,5 +329,6 @@ export {
   obtenerHistorial,
   obtenerTodasLasSolicitudes,
   upload,
-  reenviarFormulario
+  reenviarFormulario,
+  actualizarFormulario
 };
