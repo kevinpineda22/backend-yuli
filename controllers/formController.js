@@ -213,18 +213,73 @@ const respuestaGerencia = async (req, res) => {
       return res.status(400).json({ error: "El director aún no ha aprobado esta solicitud" });
     }
 
+    if (decision === 'rechazado') {
+      await supabase.from('yuli').update({
+        estado: `rechazado por gerencia (${formRecord.gerencia})`,
+        observacion_gerencia: observacion || ''
+      }).eq('workflow_id', workflow_id);
+
+      return res.json({ message: "Formulario rechazado por gerencia" });
+    }
+
+    await supabase.from('yuli').update({
+      estado: formRecord.isConstruahorro ? 'aprobado por todos' : 'pendiente por seguridad',
+      observacion_gerencia: observacion || ''
+    }).eq('workflow_id', workflow_id);
+
+    if (!formRecord.isConstruahorro) {
+      const html = generarHtmlCorreoSeguridad({
+        fecha: formRecord.fecha,
+        documento: formRecord.documento,
+        director: formRecord.director,
+        gerencia: formRecord.gerencia,
+        area: formRecord.area,
+        workflow_id,
+        descripcion: formRecord.descripcion,
+        approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
+        rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`
+      });
+      await sendEmail(formRecord.seguridad, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", html);
+    }
+
+    res.json({ message: formRecord.isConstruahorro ? "Formulario aprobado por todos" : "Decisión de gerencia registrada y correo enviado a Seguridad y Salud en el Trabajo" });
+  } catch (err) {
+    console.error("Error en respuestaGerencia:", err);
+    res.status(500).json({ error: err.message || "Error interno del servidor" });
+  }
+};
+
+const respuestaSeguridad = async (req, res) => {
+  try {
+    const { workflow_id } = req.params;
+    const { decision, observacion } = req.body;
+
+    const { data: formRecord } = await supabase
+      .from('yuli')
+      .select('*')
+      .eq('workflow_id', workflow_id)
+      .single();
+
+    if (formRecord.isConstruahorro) {
+      return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de Seguridad y Salud en el Trabajo" });
+    }
+
+    if (formRecord.estado !== 'pendiente por seguridad') {
+      return res.status(400).json({ error: "La gerencia aún no ha aprobado esta solicitud o el estado es inválido" });
+    }
+
     const newEstado = decision === 'aprobado'
       ? 'aprobado por todos'
-      : `rechazado por gerencia (${formRecord.gerencia})`;
+      : `rechazado por seguridad (${formRecord.seguridad})`;
 
     await supabase.from('yuli').update({
       estado: newEstado,
-      observacion_gerencia: observacion || ''
+      observacion_seguridad: observacion || ''
     }).eq('workflow_id', workflow_id);
 
     res.json({ message: `Formulario ${newEstado}` });
   } catch (err) {
-    console.error("Error en respuestaGerencia:", err);
+    console.error("Error en respuestaSeguridad:", err);
     res.status(500).json({ error: err.message || "Error interno del servidor" });
   }
 };
@@ -425,6 +480,7 @@ export {
   respuestaArea,
   respuestaDirector,
   respuestaGerencia,
+  respuestaSeguridad,
   obtenerHistorial,
   obtenerTodasLasSolicitudes,
   upload,
