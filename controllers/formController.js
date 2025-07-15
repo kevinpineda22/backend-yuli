@@ -294,6 +294,11 @@ const respuestaGerencia = async (req, res) => {
       .eq("workflow_id", workflow_id);
 
     if (!formRecord.isConstruahorro) {
+      if (!formRecord.seguridad || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formRecord.seguridad)) {
+        console.error("Correo de seguridad inválido o no definido:", formRecord.seguridad);
+        return res.status(400).json({ error: "El correo de Seguridad y Salud en el Trabajo no está definido o es inválido" });
+      }
+
       console.log("Generando correo para Seguridad y Salud en el Trabajo");
       const html = generarHtmlCorreoSeguridad({
         fecha: formRecord.fecha,
