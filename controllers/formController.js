@@ -103,44 +103,69 @@ const crearFormulario = async (req, res) => {
 const respuestaArea = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    const decision = req.query.decision || req.body.decision;
-    const { observacion } = req.body;
+    const { decision, observacion } = req.body;
 
-    const { data: formRecord } = await supabase
-      .from('yuli')
-      .select('*')
-      .eq('workflow_id', workflow_id)
+    console.log("Iniciando respuestaArea para workflow_id:", workflow_id);
+    console.log("Datos recibidos:", { decision, observacion });
+
+    const { data: formRecord, error: fetchError } = await supabase
+      .from("yuli")
+      .select("*")
+      .eq("workflow_id", workflow_id)
       .single();
 
+    if (fetchError) {
+      console.error("Error al obtener el registro:", fetchError);
+      return res.status(500).json({ error: "Error al obtener el registro" });
+    }
+
+    console.log("Registro encontrado:", formRecord);
+
     if (formRecord.isConstruahorro) {
+      console.log("Solicitud de Construahorro no requiere aprobación de área");
       return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de área" });
     }
 
-    if (decision === 'rechazado') {
-      await supabase.from('yuli').update({
-        estado: `rechazado por area (${formRecord.area})`,
-        observacion_area: observacion || ''
-      }).eq('workflow_id', workflow_id);
+    if (formRecord.estado !== "pendiente por area") {
+      console.log("Estado inválido. Estado actual:", formRecord.estado);
+      return res.status(400).json({ error: `Estado inválido. Se esperaba 'pendiente por area', pero se encontró '${formRecord.estado}'` });
+    }
 
+    if (decision === "rechazado") {
+      await supabase
+        .from("yuli")
+        .update({
+          estado: `rechazado por area (${formRecord.area})`,
+          observacion_area: observacion || "",
+        })
+        .eq("workflow_id", workflow_id);
+
+      console.log("Formulario rechazado por área");
       return res.json({ message: "Formulario rechazado por el área" });
     }
 
-    await supabase.from('yuli').update({
-      estado: 'aprobado por area',
-      observacion_area: observacion || ''
-    }).eq('workflow_id', workflow_id);
+    await supabase
+      .from("yuli")
+      .update({
+        estado: "aprobado por area",
+        observacion_area: observacion || "",
+      })
+      .eq("workflow_id", workflow_id);
 
     const html = generarHtmlCorreoDirector({
       fecha: formRecord.fecha,
       documento: formRecord.documento,
       gerencia: formRecord.gerencia,
+      seguridad: formRecord.seguridad,
       area: formRecord.area,
       workflow_id,
       descripcion: formRecord.descripcion,
       approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
-      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
+      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
     });
+
     await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", html);
+    console.log("Correo enviado al director:", formRecord.director);
 
     res.json({ message: "Decisión del área registrada y correo enviado al director" });
   } catch (err) {
@@ -152,45 +177,65 @@ const respuestaArea = async (req, res) => {
 const respuestaDirector = async (req, res) => {
   try {
     const { workflow_id } = req.params;
-    const decision = req.query.decision || req.body.decision;
-    const { observacion } = req.body;
+    const { decision, observacion } = req.body;
 
-    const { data: formRecord } = await supabase
-      .from('yuli')
-      .select('*')
-      .eq('workflow_id', workflow_id)
+    console.log("Iniciando respuestaDirector para workflow_id:", workflow_id);
+    console.log("Datos recibidos:", { decision, observacion });
+
+    const { data: formRecord, error: fetchError } = await supabase
+      .from("yuli")
+      .select("*")
+      .eq("workflow_id", workflow_id)
       .single();
 
-    const expectedEstado = formRecord.isConstruahorro ? 'pendiente por director' : 'aprobado por area';
-    if (formRecord.estado !== expectedEstado) {
-      return res.status(400).json({ error: `Estado inválido. Se esperaba ${expectedEstado}` });
+    if (fetchError) {
+      console.error("Error al obtener el registro:", fetchError);
+      return res.status(500).json({ error: "Error al obtener el registro" });
     }
 
-    if (decision === 'rechazado') {
-      await supabase.from('yuli').update({
-        estado: `rechazado por director (${formRecord.director})`,
-        observacion_director: observacion || ''
-      }).eq('workflow_id', workflow_id);
+    console.log("Registro encontrado:", formRecord);
 
+    const expectedEstado = formRecord.isConstruahorro ? "pendiente por director" : "aprobado por area";
+    if (formRecord.estado !== expectedEstado) {
+      console.log("Estado inválido. Estado actual:", formRecord.estado);
+      return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
+    }
+
+    if (decision === "rechazado") {
+      await supabase
+        .from("yuli")
+        .update({
+          estado: `rechazado por director (${formRecord.director})`,
+          observacion_director: observacion || "",
+        })
+        .eq("workflow_id", workflow_id);
+
+      console.log("Formulario rechazado por director");
       return res.json({ message: "Formulario rechazado por el director" });
     }
 
-    await supabase.from('yuli').update({
-      estado: 'aprobado por director',
-      observacion_director: observacion || ''
-    }).eq('workflow_id', workflow_id);
+    await supabase
+      .from("yuli")
+      .update({
+        estado: "aprobado por director",
+        observacion_director: observacion || "",
+      })
+      .eq("workflow_id", workflow_id);
 
     const html = generarHtmlCorreoGerencia({
       fecha: formRecord.fecha,
       documento: formRecord.documento,
       director: formRecord.director,
+      seguridad: formRecord.seguridad,
       area: formRecord.area,
       workflow_id,
       descripcion: formRecord.descripcion,
       approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`,
-      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`
+      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`,
     });
+
     await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
+    console.log("Correo enviado a gerencia:", formRecord.gerencia);
 
     res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
   } catch (err) {
@@ -204,31 +249,52 @@ const respuestaGerencia = async (req, res) => {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
 
-    const { data: formRecord } = await supabase
-      .from('yuli')
-      .select('*')
-      .eq('workflow_id', workflow_id)
+    console.log("Iniciando respuestaGerencia para workflow_id:", workflow_id);
+    console.log("Datos recibidos:", { decision, observacion });
+
+    const { data: formRecord, error: fetchError } = await supabase
+      .from("yuli")
+      .select("*")
+      .eq("workflow_id", workflow_id)
       .single();
 
-    if (formRecord.estado !== 'aprobado por director') {
-      return res.status(400).json({ error: "El director aún no ha aprobado esta solicitud" });
+    if (fetchError) {
+      console.error("Error al obtener el registro:", fetchError);
+      return res.status(500).json({ error: "Error al obtener el registro" });
     }
 
-    if (decision === 'rechazado') {
-      await supabase.from('yuli').update({
-        estado: `rechazado por gerencia (${formRecord.gerencia})`,
-        observacion_gerencia: observacion || ''
-      }).eq('workflow_id', workflow_id);
+    console.log("Registro encontrado:", formRecord);
 
+    if (formRecord.estado !== "aprobado por director") {
+      console.log("Estado inválido. Estado actual:", formRecord.estado);
+      return res.status(400).json({
+        error: `El director aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'`,
+      });
+    }
+
+    if (decision === "rechazado") {
+      await supabase
+        .from("yuli")
+        .update({
+          estado: `rechazado por gerencia (${formRecord.gerencia})`,
+          observacion_gerencia: observacion || "",
+        })
+        .eq("workflow_id", workflow_id);
+
+      console.log("Formulario rechazado por gerencia");
       return res.json({ message: "Formulario rechazado por gerencia" });
     }
 
-    await supabase.from('yuli').update({
-      estado: formRecord.isConstruahorro ? 'aprobado por todos' : 'pendiente por seguridad',
-      observacion_gerencia: observacion || ''
-    }).eq('workflow_id', workflow_id);
+    await supabase
+      .from("yuli")
+      .update({
+        estado: formRecord.isConstruahorro ? "aprobado por todos" : "pendiente por seguridad",
+        observacion_gerencia: observacion || "",
+      })
+      .eq("workflow_id", workflow_id);
 
     if (!formRecord.isConstruahorro) {
+      console.log("Generando correo para Seguridad y Salud en el Trabajo");
       const html = generarHtmlCorreoSeguridad({
         fecha: formRecord.fecha,
         documento: formRecord.documento,
@@ -238,12 +304,18 @@ const respuestaGerencia = async (req, res) => {
         workflow_id,
         descripcion: formRecord.descripcion,
         approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
-        rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`
+        rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
       });
+
       await sendEmail(formRecord.seguridad, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", html);
+      console.log("Correo enviado a seguridad:", formRecord.seguridad);
     }
 
-    res.json({ message: formRecord.isConstruahorro ? "Formulario aprobado por todos" : "Decisión de gerencia registrada y correo enviado a Seguridad y Salud en el Trabajo" });
+    res.json({
+      message: formRecord.isConstruahorro
+        ? "Formulario aprobado por todos"
+        : "Decisión de gerencia registrada y correo enviado a Seguridad y Salud en el Trabajo",
+    });
   } catch (err) {
     console.error("Error en respuestaGerencia:", err);
     res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -255,28 +327,47 @@ const respuestaSeguridad = async (req, res) => {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
 
-    const { data: formRecord } = await supabase
-      .from('yuli')
-      .select('*')
-      .eq('workflow_id', workflow_id)
+    console.log("Iniciando respuestaSeguridad para workflow_id:", workflow_id);
+    console.log("Datos recibidos:", { decision, observacion });
+
+    const { data: formRecord, error: fetchError } = await supabase
+      .from("yuli")
+      .select("*")
+      .eq("workflow_id", workflow_id)
       .single();
 
+    if (fetchError) {
+      console.error("Error al obtener el registro:", fetchError);
+      return res.status(500).json({ error: "Error al obtener el registro" });
+    }
+
+    console.log("Registro encontrado:", formRecord);
+
     if (formRecord.isConstruahorro) {
-      return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de Seguridad y Salud en el Trabajo" });
+      console.log("Solicitud de Construahorro no requiere aprobación de Seguridad");
+      return res.status(400).json({
+        error: "Esta solicitud es de Construahorro y no requiere aprobación de Seguridad y Salud en el Trabajo",
+      });
     }
 
-    if (formRecord.estado !== 'pendiente por seguridad') {
-      return res.status(400).json({ error: "La gerencia aún no ha aprobado esta solicitud o el estado es inválido" });
+    if (formRecord.estado !== "pendiente por seguridad") {
+      console.log("Estado inválido. Estado actual:", formRecord.estado);
+      return res.status(400).json({
+        error: `Estado inválido. Se esperaba 'pendiente por seguridad', pero se encontró '${formRecord.estado}'`,
+      });
     }
 
-    const newEstado = decision === 'aprobado'
-      ? 'aprobado por todos'
-      : `rechazado por seguridad (${formRecord.seguridad})`;
+    const newEstado = decision === "aprobado" ? "aprobado por todos" : `rechazado por seguridad (${formRecord.seguridad})`;
 
-    await supabase.from('yuli').update({
-      estado: newEstado,
-      observacion_seguridad: observacion || ''
-    }).eq('workflow_id', workflow_id);
+    await supabase
+      .from("yuli")
+      .update({
+        estado: newEstado,
+        observacion_seguridad: observacion || "",
+      })
+      .eq("workflow_id", workflow_id);
+
+    console.log("Estado actualizado a:", newEstado);
 
     res.json({ message: `Formulario ${newEstado}` });
   } catch (err) {

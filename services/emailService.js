@@ -48,13 +48,11 @@ export const generarHtmlCorreoArea = (formData) => `
       <tr>
         <td align="center">
           <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
-            <!-- Encabezado -->
             <tr>
               <td align="center" style="padding:20px; background-color:#210D65;">
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Área</h2>
               </td>
             </tr>
-            <!-- Nota Importante -->
             <tr>
               <td align="center" style="padding:15px; background-color:#FFD700;">
                 <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
@@ -62,14 +60,14 @@ export const generarHtmlCorreoArea = (formData) => `
                 </p>
               </td>
             </tr>
-            <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
                 <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'Sin descripción'}</p>
+                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || "Sin descripción"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
                 <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${formData.director}</p>
                 <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${formData.gerencia}</p>
+                <p style="margin:0 0 10px 0;"><strong>Seguridad:</strong> ${formData.seguridad || "No definida"}</p>
                 <p style="margin:0 0 20px 0;">Por favor, revisa la solicitud y toma una decisión:</p>
                 <div style="text-align:center;">
                   <a href="${formData.approvalLink}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#28a745; color:#ffffff; text-decoration:none; border-radius:4px; margin-right:10px;">Aprobar</a>
@@ -77,7 +75,6 @@ export const generarHtmlCorreoArea = (formData) => `
                 </div>
               </td>
             </tr>
-            <!-- Pie de página -->
             <tr>
               <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
                 © ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
@@ -91,7 +88,6 @@ export const generarHtmlCorreoArea = (formData) => `
 </html>
 `;
 
-// Plantilla modificada para el director
 export const generarHtmlCorreoDirector = (formData) => `
 <html>
   <head>
@@ -103,13 +99,11 @@ export const generarHtmlCorreoDirector = (formData) => `
       <tr>
         <td align="center">
           <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
-            <!-- Encabezado -->
             <tr>
               <td align="center" style="padding:20px; background-color:#210D65;">
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Director de Área</h2>
               </td>
             </tr>
-            <!-- Nota Importante -->
             <tr>
               <td align="center" style="padding:15px; background-color:#FFD700;">
                 <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
@@ -117,14 +111,14 @@ export const generarHtmlCorreoDirector = (formData) => `
                 </p>
               </td>
             </tr>
-            <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
                 <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'Sin descripción'}</p>
+                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || "Sin descripción"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
-                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area}</p>
+                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area || "No definida"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${formData.gerencia}</p>
+                <p style="margin:0 0 10px 0;"><strong>Seguridad:</strong> ${formData.seguridad || "No definida"}</p>
                 <p style="margin:0 0 20px 0;">Esta solicitud ha sido aprobada por el área. Por favor, revisa y toma una decisión:</p>
                 <div style="text-align:center;">
                   <a href="${formData.approvalLink}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#28a745; color:#ffffff; text-decoration:none; border-radius:4px; margin-right:10px;">Aprobar</a>
@@ -132,7 +126,6 @@ export const generarHtmlCorreoDirector = (formData) => `
                 </div>
               </td>
             </tr>
-            <!-- Pie de página -->
             <tr>
               <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
                 © ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
@@ -146,7 +139,6 @@ export const generarHtmlCorreoDirector = (formData) => `
 </html>
 `;
 
-// Plantilla modificada para gerencia
 export const generarHtmlCorreoGerencia = (formData) => `
 <html>
   <head>
@@ -158,13 +150,11 @@ export const generarHtmlCorreoGerencia = (formData) => `
       <tr>
         <td align="center">
           <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
-            <!-- Encabezado -->
             <tr>
               <td align="center" style="padding:20px; background-color:#210D65;">
                 <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">Solicitud de Aprobación - Gerencia General</h2>
               </td>
             </tr>
-            <!-- Nota Importante -->
             <tr>
               <td align="center" style="padding:15px; background-color:#FFD700;">
                 <p style="margin:0; font-size:18px; color:#000000; font-family:Arial, sans-serif; font-weight:bold; line-height:1.4; word-wrap:break-word; max-width:600px;">
@@ -172,14 +162,14 @@ export const generarHtmlCorreoGerencia = (formData) => `
                 </p>
               </td>
             </tr>
-            <!-- Contenido -->
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
                 <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'Sin descripción'}</p>
+                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || "Sin descripción"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
-                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area}</p>
+                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area || "No definida"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${formData.director}</p>
+                <p style="margin:0 0 10px 0;"><strong>Seguridad:</strong> ${formData.seguridad || "No definida"}</p>
                 <p style="margin:0 0 20px 0;">Esta solicitud ha sido aprobada por el área y el director. Por favor, revisa y toma una decisión:</p>
                 <div style="text-align:center;">
                   <a href="${formData.approvalLink}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#28a745; color:#ffffff; text-decoration:none; border-radius:4px; margin-right:10px;">Aprobar</a>
@@ -187,7 +177,6 @@ export const generarHtmlCorreoGerencia = (formData) => `
                 </div>
               </td>
             </tr>
-            <!-- Pie de página -->
             <tr>
               <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
                 © ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
@@ -199,7 +188,7 @@ export const generarHtmlCorreoGerencia = (formData) => `
     </table>
   </body>
 </html>
-`
+`;
 
 export const generarHtmlCorreoSeguridad = (formData) => `
 <html>
@@ -227,9 +216,9 @@ export const generarHtmlCorreoSeguridad = (formData) => `
             <tr>
               <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
                 <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha}</p>
-                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'Sin descripción'}</p>
+                <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || "Sin descripción"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Documento:</strong> <a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a></p>
-                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area}</p>
+                <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.area || "No definida"}</p>
                 <p style="margin:0 0 10px 0;"><strong>Director:</strong> ${formData.director}</p>
                 <p style="margin:0 0 10px 0;"><strong>Gerencia:</strong> ${formData.gerencia}</p>
                 <p style="margin:0 0 20px 0;">Esta solicitud ha sido aprobada por el área, el director y la gerencia. Por favor, revisa y toma una decisión:</p>
