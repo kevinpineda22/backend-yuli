@@ -3,7 +3,8 @@ import {
   sendEmail,
   generarHtmlCorreoArea,
   generarHtmlCorreoDirector,
-  generarHtmlCorreoGerencia
+  generarHtmlCorreoGerencia,
+  generarHtmlCorreoSeguridad
 } from '../services/emailService.js';
 import supabase from '../supabaseCliente.js';
 
