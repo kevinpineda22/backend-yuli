@@ -13,7 +13,7 @@ const upload = multer({ storage });
 
 const crearFormulario = async (req, res) => {
   try {
-    const { fecha, director, gerencia, descripcion, area, isConstruahorro } = req.body;
+    const { fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad } = req.body;
     const file = req.file;
 
     if (!file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
@@ -42,6 +42,7 @@ const crearFormulario = async (req, res) => {
       documento: documentoUrl,
       director,
       gerencia,
+      seguridad: isConstruahorro === 'true' ? null : seguridad,
       area: isConstruahorro === 'true' ? null : area,
       descripcion,
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
