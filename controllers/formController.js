@@ -26,7 +26,7 @@ export const crearFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -56,7 +56,7 @@ export const crearFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -126,7 +126,7 @@ export const crearFormulario = async (req, res) => {
       estructuraOrganizacional: estructuraOrganizacionalUrl,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -499,7 +499,7 @@ export const reenviarFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -528,7 +528,7 @@ export const reenviarFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -597,7 +597,7 @@ export const reenviarFormulario = async (req, res) => {
       estructuraOrganizacional: estructuraOrganizacionalUrl,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -668,7 +668,7 @@ export const actualizarFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -697,7 +697,7 @@ export const actualizarFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -766,7 +766,7 @@ export const actualizarFormulario = async (req, res) => {
       estructuraOrganizacional: estructuraOrganizacionalUrl,
       poblacionFocalizada,
       escolaridad,
-      areaFormacion,
+      area_formacion, // Cambiado de areaFormacion a area_formacion
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
