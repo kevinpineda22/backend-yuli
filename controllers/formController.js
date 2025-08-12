@@ -9,33 +9,111 @@ import {
 import supabase from '../supabaseCliente.js';
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const uploadFields = multer({ storage }).fields([
+  { name: 'documento', maxCount: 1 },
+  { name: 'estructuraOrganizacional', maxCount: 1 }
+]);
 
 const crearFormulario = async (req, res) => {
   try {
-    const { fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad } = req.body;
-    const file = req.file;
+    const {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      area,
+      isConstruahorro,
+      seguridad,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno
+    } = req.body;
 
-    if (!file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
-    if (!fecha || !director || !gerencia || !descripcion) {
-      return res.status(400).json({ error: 'Los campos fecha, director, gerencia y descripción son obligatorios' });
+    const { documento, estructuraOrganizacional } = req.files || {};
+
+    const requiredFields = {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+      escolaridad,
+      areaFormacion,
+      experiencia,
+      jefeInmediato,
+      tipoContrato,
+      misionCargo
+    };
+
+    for (const [key, value] of Object.entries(requiredFields)) {
+      if (!value) {
+        return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+      }
     }
+
     if (!isConstruahorro && !area) {
       return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
     }
 
-    const fileName = `${Date.now()}_${file.originalname}`;
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage.from('pdfs-yuli')
-      .upload(fileName, file.buffer, { contentType: file.mimetype });
-
-    if (uploadError) {
-      console.error("Error al subir archivo:", uploadError);
-      return res.status(500).json({ error: 'Error al subir archivo' });
+    if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+      return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
     }
 
-    const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
-    const documentoUrl = publicUrlData.publicUrl;
+    let documentoUrl = null;
+    if (documento && documento[0]) {
+      const fileName = `${Date.now()}_${documento[0].originalname}`;
+      const { error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
+
+      if (uploadError) {
+        console.error("Error al subir archivo documento:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo documento' });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      documentoUrl = publicUrlData.publicUrl;
+    }
+
+    let estructuraOrganizacionalUrl = null;
+    if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+      const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+      const { error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+      if (uploadError) {
+        console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+    } else {
+      return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
+    }
 
     const formData = {
       fecha,
@@ -45,10 +123,33 @@ const crearFormulario = async (req, res) => {
       seguridad: isConstruahorro === 'true' ? null : seguridad,
       area: isConstruahorro === 'true' ? null : area,
       descripcion,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacionalUrl,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno,
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
       observacion_gerencia: null,
+      observacion_seguridad: null,
       role: 'creador',
       isConstruahorro: isConstruahorro === 'true'
     };
@@ -69,30 +170,11 @@ const crearFormulario = async (req, res) => {
 
     const emailRecipient = isConstruahorro === 'true' ? director : area;
     const emailSubject = isConstruahorro === 'true' ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
-    const html = isConstruahorro === 'true'
-      ? generarHtmlCorreoDirector({
-          fecha,
-          documento: documentoUrl,
-          gerencia,
-          area,
-          workflow_id,
-          descripcion,
-          approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
-          rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
-        })
-      : generarHtmlCorreoArea({
-          fecha,
-          documento: documentoUrl,
-          director,
-          gerencia,
-          area,
-          workflow_id,
-          descripcion,
-          approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
-          rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
-        });
+    const emailData = await (isConstruahorro === 'true'
+      ? generarHtmlCorreoDirector({ ...formData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
+      : generarHtmlCorreoArea({ ...formData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
 
-    await sendEmail(emailRecipient, emailSubject, html);
+    await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
     res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}`, workflow_id });
   } catch (err) {
@@ -153,19 +235,13 @@ const respuestaArea = async (req, res) => {
       })
       .eq("workflow_id", workflow_id);
 
-    const html = generarHtmlCorreoDirector({
-      fecha: formRecord.fecha,
-      documento: formRecord.documento,
-      gerencia: formRecord.gerencia,
-      seguridad: formRecord.seguridad,
-      area: formRecord.area,
-      workflow_id,
-      descripcion: formRecord.descripcion,
+    const emailData = await generarHtmlCorreoDirector({
+      ...formRecord,
       approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
       rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
     });
 
-    await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", html);
+    await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", emailData.html, emailData.attachments);
     console.log("Correo enviado al director:", formRecord.director);
 
     res.json({ message: "Decisión del área registrada y correo enviado al director" });
@@ -223,19 +299,13 @@ const respuestaDirector = async (req, res) => {
       })
       .eq("workflow_id", workflow_id);
 
-    const html = generarHtmlCorreoGerencia({
-      fecha: formRecord.fecha,
-      documento: formRecord.documento,
-      director: formRecord.director,
-      seguridad: formRecord.seguridad,
-      area: formRecord.area,
-      workflow_id,
-      descripcion: formRecord.descripcion,
+    const emailData = await generarHtmlCorreoGerencia({
+      ...formRecord,
       approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`,
       rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`,
     });
 
-    await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", html);
+    await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", emailData.html, emailData.attachments);
     console.log("Correo enviado a gerencia:", formRecord.gerencia);
 
     res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
@@ -301,19 +371,13 @@ const respuestaGerencia = async (req, res) => {
       }
 
       console.log("Generando correo para Seguridad y Salud en el Trabajo");
-      const html = generarHtmlCorreoSeguridad({
-        fecha: formRecord.fecha,
-        documento: formRecord.documento,
-        director: formRecord.director,
-        gerencia: formRecord.gerencia,
-        area: formRecord.area,
-        workflow_id,
-        descripcion: formRecord.descripcion,
+      const emailData = await generarHtmlCorreoSeguridad({
+        ...formRecord,
         approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
         rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
       });
 
-      await sendEmail(formRecord.seguridad, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", html);
+      await sendEmail(formRecord.seguridad, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
       console.log("Correo enviado a seguridad:", formRecord.seguridad);
     }
 
@@ -425,30 +489,102 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
 const reenviarFormulario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fecha, director, gerencia, descripcion, area, isConstruahorro } = req.body;
-    const file = req.file;
+    const {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      area,
+      isConstruahorro,
+      seguridad,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno
+    } = req.body;
+    const { documento, estructuraOrganizacional } = req.files || {};
 
-    if (!fecha || !director || !gerencia || !descripcion) {
-      return res.status(400).json({ error: 'Los campos fecha, director, gerencia y descripción son obligatorios' });
+    const requiredFields = {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+      escolaridad,
+      areaFormacion,
+      experiencia,
+      jefeInmediato,
+      tipoContrato,
+      misionCargo
+    };
+
+    for (const [key, value] of Object.entries(requiredFields)) {
+      if (!value) {
+        return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+      }
     }
+
     if (!isConstruahorro && !area) {
       return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
     }
 
+    if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+      return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+    }
+
     let documentoUrl = null;
-    if (file) {
-      const fileName = `${Date.now()}_${file.originalname}`;
-      const { data: uploadData, error: uploadError } = await supabase
+    if (documento && documento[0]) {
+      const fileName = `${Date.now()}_${documento[0].originalname}`;
+      const { error: uploadError } = await supabase
         .storage.from('pdfs-yuli')
-        .upload(fileName, file.buffer, { contentType: file.mimetype });
+        .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
 
       if (uploadError) {
-        console.error("Error al subir archivo en reenviarFormulario:", uploadError);
-        return res.status(500).json({ error: 'Error al subir archivo' });
+        console.error("Error al subir archivo documento en reenviarFormulario:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo documento' });
       }
 
       const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
       documentoUrl = publicUrlData.publicUrl;
+    }
+
+    let estructuraOrganizacionalUrl = null;
+    if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+      const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+      const { error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+      if (uploadError) {
+        console.error("Error al subir archivo estructuraOrganizacional en reenviarFormulario:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+    } else {
+      return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
     }
 
     const updates = {
@@ -456,11 +592,35 @@ const reenviarFormulario = async (req, res) => {
       director,
       gerencia,
       area: isConstruahorro === 'true' ? null : area,
+      seguridad: isConstruahorro === 'true' ? null : seguridad,
       descripcion,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacionalUrl,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno,
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
       observacion_gerencia: null,
+      observacion_seguridad: null,
       isConstruahorro: isConstruahorro === 'true'
     };
 
@@ -482,30 +642,11 @@ const reenviarFormulario = async (req, res) => {
 
     const emailRecipient = isConstruahorro === 'true' ? updated.director : updated.area;
     const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-    const html = isConstruahorro === 'true'
-      ? generarHtmlCorreoDirector({
-          fecha: updated.fecha,
-          documento: updated.documento,
-          gerencia: updated.gerencia,
-          area: updated.area,
-          workflow_id,
-          descripcion: updated.descripcion,
-          approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
-          rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
-        })
-      : generarHtmlCorreoArea({
-          fecha: updated.fecha,
-          documento: updated.documento,
-          director: updated.director,
-          gerencia: updated.gerencia,
-          area: updated.area,
-          workflow_id,
-          descripcion: updated.descripcion,
-          approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
-          rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
-        });
+    const emailData = await (isConstruahorro === 'true'
+      ? generarHtmlCorreoDirector({ ...updated, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
+      : generarHtmlCorreoArea({ ...updated, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
 
-    await sendEmail(emailRecipient, emailSubject, html);
+    await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
     res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}` });
   } catch (err) {
@@ -517,30 +658,102 @@ const reenviarFormulario = async (req, res) => {
 const actualizarFormulario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fecha, director, gerencia, descripcion, area, isConstruahorro } = req.body;
-    const file = req.file;
+    const {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      area,
+      isConstruahorro,
+      seguridad,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno
+    } = req.body;
+    const { documento, estructuraOrganizacional } = req.files || {};
 
-    if (!fecha || !director || !gerencia || !descripcion) {
-      return res.status(400).json({ error: 'Los campos fecha, director, gerencia y descripción son obligatorios' });
+    const requiredFields = {
+      fecha,
+      director,
+      gerencia,
+      descripcion,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+      escolaridad,
+      areaFormacion,
+      experiencia,
+      jefeInmediato,
+      tipoContrato,
+      misionCargo
+    };
+
+    for (const [key, value] of Object.entries(requiredFields)) {
+      if (!value) {
+        return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+      }
     }
+
     if (!isConstruahorro && !area) {
       return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
     }
 
-    let documentoUrl;
-    if (file) {
-      const fileName = `${Date.now()}_${file.originalname}`;
-      const { data: uploadData, error: uploadError } = await supabase
+    if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+      return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+    }
+
+    let documentoUrl = null;
+    if (documento && documento[0]) {
+      const fileName = `${Date.now()}_${documento[0].originalname}`;
+      const { error: uploadError } = await supabase
         .storage.from('pdfs-yuli')
-        .upload(fileName, file.buffer, { contentType: file.mimetype });
+        .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
 
       if (uploadError) {
-        console.error("Error al subir archivo en actualizarFormulario:", uploadError);
-        return res.status(500).json({ error: 'Error al subir el archivo' });
+        console.error("Error al subir archivo documento en actualizarFormulario:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo documento' });
       }
 
       const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
       documentoUrl = publicUrlData.publicUrl;
+    }
+
+    let estructuraOrganizacionalUrl = null;
+    if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+      const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+      const { error: uploadError } = await supabase
+        .storage.from('pdfs-yuli')
+        .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+      if (uploadError) {
+        console.error("Error al subir archivo estructuraOrganizacional en actualizarFormulario:", uploadError);
+        return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+      estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+    } else {
+      return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
     }
 
     const updateFields = {
@@ -549,6 +762,29 @@ const actualizarFormulario = async (req, res) => {
       gerencia,
       descripcion,
       area: isConstruahorro === 'true' ? null : area,
+      seguridad: isConstruahorro === 'true' ? null : seguridad,
+      nombreCargo,
+      areaGeneral,
+      departamento,
+      proceso,
+      estructuraOrganizacional: estructuraOrganizacionalUrl,
+      poblacionFocalizada,
+      escolaridad,
+      areaFormacion,
+      estudiosComplementarios,
+      experiencia,
+      jefeInmediato,
+      supervisaA,
+      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      tipoContrato,
+      misionCargo,
+      cursosCertificaciones,
+      requiereVehiculo,
+      tipoLicencia,
+      idiomas,
+      requiereViajar,
+      areasRelacionadas,
+      relacionamientoExterno,
       isConstruahorro: isConstruahorro === 'true'
     };
 
@@ -581,7 +817,7 @@ export {
   respuestaSeguridad,
   obtenerHistorial,
   obtenerTodasLasSolicitudes,
-  upload,
+  upload, uploadFields,
   reenviarFormulario,
   actualizarFormulario
 };
