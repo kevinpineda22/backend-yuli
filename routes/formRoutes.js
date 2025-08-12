@@ -19,4 +19,4 @@ router.get('/yuli', obtenerTodasLasSolicitudes);                 // Todas las so
 router.post('/yuli/resend/:id', upload, reenviarFormulario);
 router.put('/yuli/:id', upload, actualizarFormulario);
 
-export default router;
+export default router; 
