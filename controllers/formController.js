@@ -817,7 +817,7 @@ export {
   respuestaSeguridad,
   obtenerHistorial,
   obtenerTodasLasSolicitudes,
-  upload, uploadFields,
+  uploadFields,
   reenviarFormulario,
-  actualizarFormulario
+  actualizarFormulario,
 };
