@@ -8,13 +8,12 @@ import {
 } from '../services/emailService.js';
 import supabase from '../supabaseCliente.js';
 
-const storage = multer.memoryStorage();
-const uploadFields = multer({ storage }).fields([
+export const upload = multer({ storage: multer.memoryStorage() }).fields([
   { name: 'documento', maxCount: 1 },
   { name: 'estructuraOrganizacional', maxCount: 1 }
 ]);
 
-const crearFormulario = async (req, res) => {
+export const crearFormulario = async (req, res) => {
   try {
     const {
       fecha,
@@ -183,7 +182,7 @@ const crearFormulario = async (req, res) => {
   }
 };
 
-const respuestaArea = async (req, res) => {
+export const respuestaArea = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
@@ -251,7 +250,7 @@ const respuestaArea = async (req, res) => {
   }
 };
 
-const respuestaDirector = async (req, res) => {
+export const respuestaDirector = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
@@ -315,7 +314,7 @@ const respuestaDirector = async (req, res) => {
   }
 };
 
-const respuestaGerencia = async (req, res) => {
+export const respuestaGerencia = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
@@ -392,7 +391,7 @@ const respuestaGerencia = async (req, res) => {
   }
 };
 
-const respuestaSeguridad = async (req, res) => {
+export const respuestaSeguridad = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { decision, observacion } = req.body;
@@ -446,7 +445,7 @@ const respuestaSeguridad = async (req, res) => {
   }
 };
 
-const obtenerHistorial = async (req, res) => {
+export const obtenerHistorial = async (req, res) => {
   try {
     const { workflow_id } = req.params;
     const { data, error } = await supabase
@@ -467,7 +466,7 @@ const obtenerHistorial = async (req, res) => {
   }
 };
 
-const obtenerTodasLasSolicitudes = async (req, res) => {
+export const obtenerTodasLasSolicitudes = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('yuli')
@@ -486,7 +485,7 @@ const obtenerTodasLasSolicitudes = async (req, res) => {
   }
 };
 
-const reenviarFormulario = async (req, res) => {
+export const reenviarFormulario = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -655,7 +654,7 @@ const reenviarFormulario = async (req, res) => {
   }
 };
 
-const actualizarFormulario = async (req, res) => {
+export const actualizarFormulario = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -807,17 +806,4 @@ const actualizarFormulario = async (req, res) => {
     console.error("Error en actualizarFormulario:", err);
     res.status(500).json({ error: err.message || "Error interno al actualizar solicitud" });
   }
-};
-
-export {
-  crearFormulario,
-  respuestaArea,
-  respuestaDirector,
-  respuestaGerencia,
-  respuestaSeguridad,
-  obtenerHistorial,
-  obtenerTodasLasSolicitudes,
-  upload: uploadFields,
-  reenviarFormulario,
-  actualizarFormulario
 };
