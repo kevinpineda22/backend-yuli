@@ -10,6 +10,40 @@ import supabase from '../supabaseCliente.js';
 
 export const upload = multer({ storage: multer.memoryStorage() });
 
+// Mapeo de nombres de campos del frontend a columnas de la base de datos
+const fieldMapping = {
+  nombreCargo: 'nombrecargo',
+  areaGeneral: 'areageneral',
+  departamento: 'departamento',
+  proceso: 'proceso',
+  estructuraOrganizacional: 'estructuraorganizacional',
+  poblacionFocalizada: 'poblacionfocalizada',
+  escolaridad: 'escolaridad',
+  area_formacion: 'area_formacion',
+  estudiosComplementarios: 'estudioscomplementarios',
+  experiencia: 'experiencia',
+  jefeInmediato: 'jefeinmediato',
+  supervisaA: 'supervisaa',
+  numeroPersonasCargo: 'numeropersonascargo',
+  tipoContrato: 'tipocontrato',
+  misionCargo: 'misioncargo',
+  cursosCertificaciones: 'cursoscertificaciones',
+  requiereVehiculo: 'requierevehiculo',
+  tipoLicencia: 'tipolicencia',
+  idiomas: 'idiomas',
+  requiereViajar: 'requiereviajar',
+  areasRelacionadas: 'areasrelacionadas',
+  relacionamientoExterno: 'relacionamientoexterno',
+  fecha: 'fecha',
+  director: 'director',
+  gerencia: 'gerencia',
+  seguridad: 'seguridad',
+  area: 'area',
+  descripcion: 'descripcion',
+  documento: 'documento',
+  isConstruahorro: 'isConstruahorro'
+};
+
 export const crearFormulario = async (req, res) => {
   try {
     const {
@@ -26,7 +60,7 @@ export const crearFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -56,7 +90,7 @@ export const crearFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -111,43 +145,44 @@ export const crearFormulario = async (req, res) => {
       return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
     }
 
+    // Mapear los nombres de los campos del frontend a los de la base de datos
     const formData = {
-      fecha,
-      documento: documentoUrl,
-      director,
-      gerencia,
-      seguridad: isConstruahorro === 'true' ? null : seguridad,
-      area: isConstruahorro === 'true' ? null : area,
-      descripcion,
-      nombreCargo,
-      areaGeneral,
-      departamento,
-      proceso,
-      estructuraOrganizacional: estructuraOrganizacionalUrl,
-      poblacionFocalizada,
-      escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
-      estudiosComplementarios,
-      experiencia,
-      jefeInmediato,
-      supervisaA,
-      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
-      tipoContrato,
-      misionCargo,
-      cursosCertificaciones,
-      requiereVehiculo,
-      tipoLicencia,
-      idiomas,
-      requiereViajar,
-      areasRelacionadas,
-      relacionamientoExterno,
+      [fieldMapping.fecha]: fecha,
+      [fieldMapping.documento]: documentoUrl,
+      [fieldMapping.director]: director,
+      [fieldMapping.gerencia]: gerencia,
+      [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+      [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+      [fieldMapping.descripcion]: descripcion,
+      [fieldMapping.nombreCargo]: nombreCargo,
+      [fieldMapping.areaGeneral]: areaGeneral,
+      [fieldMapping.departamento]: departamento,
+      [fieldMapping.proceso]: proceso,
+      [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+      [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+      [fieldMapping.escolaridad]: escolaridad,
+      [fieldMapping.area_formacion]: area_formacion,
+      [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+      [fieldMapping.experiencia]: experiencia,
+      [fieldMapping.jefeInmediato]: jefeInmediato,
+      [fieldMapping.supervisaA]: supervisaA,
+      [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      [fieldMapping.tipoContrato]: tipoContrato,
+      [fieldMapping.misionCargo]: misionCargo,
+      [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+      [fieldMapping.requiereVehiculo]: requiereVehiculo,
+      [fieldMapping.tipoLicencia]: tipoLicencia,
+      [fieldMapping.idiomas]: idiomas,
+      [fieldMapping.requiereViajar]: requiereViajar,
+      [fieldMapping.areasRelacionadas]: areasRelacionadas,
+      [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
       observacion_gerencia: null,
       observacion_seguridad: null,
       role: 'creador',
-      isConstruahorro: isConstruahorro === 'true'
+      [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
     };
 
     const { data, error } = await supabase
@@ -200,7 +235,7 @@ export const respuestaArea = async (req, res) => {
 
     console.log("Registro encontrado:", formRecord);
 
-    if (formRecord.isConstruahorro) {
+    if (formRecord[fieldMapping.isConstruahorro]) {
       console.log("Solicitud de Construahorro no requiere aprobación de área");
       return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de área" });
     }
@@ -214,7 +249,7 @@ export const respuestaArea = async (req, res) => {
       await supabase
         .from("yuli")
         .update({
-          estado: `rechazado por area (${formRecord.area})`,
+          estado: `rechazado por area (${formRecord[fieldMapping.area]})`,
           observacion_area: observacion || "",
         })
         .eq("workflow_id", workflow_id);
@@ -237,8 +272,8 @@ export const respuestaArea = async (req, res) => {
       rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
     });
 
-    await sendEmail(formRecord.director, "Solicitud de Aprobación - Director", emailData.html, emailData.attachments);
-    console.log("Correo enviado al director:", formRecord.director);
+    await sendEmail(formRecord[fieldMapping.director], "Solicitud de Aprobación - Director", emailData.html, emailData.attachments);
+    console.log("Correo enviado al director:", formRecord[fieldMapping.director]);
 
     res.json({ message: "Decisión del área registrada y correo enviado al director" });
   } catch (err) {
@@ -268,7 +303,7 @@ export const respuestaDirector = async (req, res) => {
 
     console.log("Registro encontrado:", formRecord);
 
-    const expectedEstado = formRecord.isConstruahorro ? "pendiente por director" : "aprobado por area";
+    const expectedEstado = formRecord[fieldMapping.isConstruahorro] ? "pendiente por director" : "aprobado por area";
     if (formRecord.estado !== expectedEstado) {
       console.log("Estado inválido. Estado actual:", formRecord.estado);
       return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
@@ -278,7 +313,7 @@ export const respuestaDirector = async (req, res) => {
       await supabase
         .from("yuli")
         .update({
-          estado: `rechazado por director (${formRecord.director})`,
+          estado: `rechazado por director (${formRecord[fieldMapping.director]})`,
           observacion_director: observacion || "",
         })
         .eq("workflow_id", workflow_id);
@@ -301,8 +336,8 @@ export const respuestaDirector = async (req, res) => {
       rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/gerencia`,
     });
 
-    await sendEmail(formRecord.gerencia, "Solicitud de Aprobación - Gerencia", emailData.html, emailData.attachments);
-    console.log("Correo enviado a gerencia:", formRecord.gerencia);
+    await sendEmail(formRecord[fieldMapping.gerencia], "Solicitud de Aprobación - Gerencia", emailData.html, emailData.attachments);
+    console.log("Correo enviado a gerencia:", formRecord[fieldMapping.gerencia]);
 
     res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
   } catch (err) {
@@ -343,7 +378,7 @@ export const respuestaGerencia = async (req, res) => {
       await supabase
         .from("yuli")
         .update({
-          estado: `rechazado por gerencia (${formRecord.gerencia})`,
+          estado: `rechazado por gerencia (${formRecord[fieldMapping.gerencia]})`,
           observacion_gerencia: observacion || "",
         })
         .eq("workflow_id", workflow_id);
@@ -355,14 +390,14 @@ export const respuestaGerencia = async (req, res) => {
     await supabase
       .from("yuli")
       .update({
-        estado: formRecord.isConstruahorro ? "aprobado por todos" : "pendiente por seguridad",
+        estado: formRecord[fieldMapping.isConstruahorro] ? "aprobado por todos" : "pendiente por seguridad",
         observacion_gerencia: observacion || "",
       })
       .eq("workflow_id", workflow_id);
 
-    if (!formRecord.isConstruahorro) {
-      if (!formRecord.seguridad || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formRecord.seguridad)) {
-        console.error("Correo de seguridad inválido o no definido:", formRecord.seguridad);
+    if (!formRecord[fieldMapping.isConstruahorro]) {
+      if (!formRecord[fieldMapping.seguridad] || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formRecord[fieldMapping.seguridad])) {
+        console.error("Correo de seguridad inválido o no definido:", formRecord[fieldMapping.seguridad]);
         return res.status(400).json({ error: "El correo de Seguridad y Salud en el Trabajo no está definido o es inválido" });
       }
 
@@ -373,12 +408,12 @@ export const respuestaGerencia = async (req, res) => {
         rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
       });
 
-      await sendEmail(formRecord.seguridad, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
-      console.log("Correo enviado a seguridad:", formRecord.seguridad);
+      await sendEmail(formRecord[fieldMapping.seguridad], "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
+      console.log("Correo enviado a seguridad:", formRecord[fieldMapping.seguridad]);
     }
 
     res.json({
-      message: formRecord.isConstruahorro
+      message: formRecord[fieldMapping.isConstruahorro]
         ? "Formulario aprobado por todos"
         : "Decisión de gerencia registrada y correo enviado a Seguridad y Salud en el Trabajo",
     });
@@ -409,7 +444,7 @@ export const respuestaSeguridad = async (req, res) => {
 
     console.log("Registro encontrado:", formRecord);
 
-    if (formRecord.isConstruahorro) {
+    if (formRecord[fieldMapping.isConstruahorro]) {
       console.log("Solicitud de Construahorro no requiere aprobación de Seguridad");
       return res.status(400).json({
         error: "Esta solicitud es de Construahorro y no requiere aprobación de Seguridad y Salud en el Trabajo",
@@ -423,7 +458,7 @@ export const respuestaSeguridad = async (req, res) => {
       });
     }
 
-    const newEstado = decision === "aprobado" ? "aprobado por todos" : `rechazado por seguridad (${formRecord.seguridad})`;
+    const newEstado = decision === "aprobado" ? "aprobado por todos" : `rechazado por seguridad (${formRecord[fieldMapping.seguridad]})`;
 
     await supabase
       .from("yuli")
@@ -499,7 +534,7 @@ export const reenviarFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -528,7 +563,7 @@ export const reenviarFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -583,44 +618,45 @@ export const reenviarFormulario = async (req, res) => {
       return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
     }
 
+    // Mapear los nombres de los campos del frontend a los de la base de datos
     const updates = {
-      fecha,
-      director,
-      gerencia,
-      area: isConstruahorro === 'true' ? null : area,
-      seguridad: isConstruahorro === 'true' ? null : seguridad,
-      descripcion,
-      nombreCargo,
-      areaGeneral,
-      departamento,
-      proceso,
-      estructuraOrganizacional: estructuraOrganizacionalUrl,
-      poblacionFocalizada,
-      escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
-      estudiosComplementarios,
-      experiencia,
-      jefeInmediato,
-      supervisaA,
-      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
-      tipoContrato,
-      misionCargo,
-      cursosCertificaciones,
-      requiereVehiculo,
-      tipoLicencia,
-      idiomas,
-      requiereViajar,
-      areasRelacionadas,
-      relacionamientoExterno,
+      [fieldMapping.fecha]: fecha,
+      [fieldMapping.director]: director,
+      [fieldMapping.gerencia]: gerencia,
+      [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+      [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+      [fieldMapping.descripcion]: descripcion,
+      [fieldMapping.nombreCargo]: nombreCargo,
+      [fieldMapping.areaGeneral]: areaGeneral,
+      [fieldMapping.departamento]: departamento,
+      [fieldMapping.proceso]: proceso,
+      [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+      [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+      [fieldMapping.escolaridad]: escolaridad,
+      [fieldMapping.area_formacion]: area_formacion,
+      [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+      [fieldMapping.experiencia]: experiencia,
+      [fieldMapping.jefeInmediato]: jefeInmediato,
+      [fieldMapping.supervisaA]: supervisaA,
+      [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      [fieldMapping.tipoContrato]: tipoContrato,
+      [fieldMapping.misionCargo]: misionCargo,
+      [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+      [fieldMapping.requiereVehiculo]: requiereVehiculo,
+      [fieldMapping.tipoLicencia]: tipoLicencia,
+      [fieldMapping.idiomas]: idiomas,
+      [fieldMapping.requiereViajar]: requiereViajar,
+      [fieldMapping.areasRelacionadas]: areasRelacionadas,
+      [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
       observacion_gerencia: null,
       observacion_seguridad: null,
-      isConstruahorro: isConstruahorro === 'true'
+      [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
     };
 
-    if (documentoUrl) updates.documento = documentoUrl;
+    if (documentoUrl) updates[fieldMapping.documento] = documentoUrl;
 
     const { data: updated, error: updateError } = await supabase
       .from('yuli')
@@ -636,7 +672,7 @@ export const reenviarFormulario = async (req, res) => {
 
     const workflow_id = updated.workflow_id;
 
-    const emailRecipient = isConstruahorro === 'true' ? updated.director : updated.area;
+    const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
     const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
     const emailData = await (isConstruahorro === 'true'
       ? generarHtmlCorreoDirector({ ...updated, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
@@ -668,7 +704,7 @@ export const actualizarFormulario = async (req, res) => {
       proceso,
       poblacionFocalizada,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       estudiosComplementarios,
       experiencia,
       jefeInmediato,
@@ -697,7 +733,7 @@ export const actualizarFormulario = async (req, res) => {
       proceso,
       estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
       escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
+      area_formacion,
       experiencia,
       jefeInmediato,
       tipoContrato,
@@ -752,39 +788,40 @@ export const actualizarFormulario = async (req, res) => {
       return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
     }
 
+    // Mapear los nombres de los campos del frontend a los de la base de datos
     const updateFields = {
-      fecha,
-      director,
-      gerencia,
-      descripcion,
-      area: isConstruahorro === 'true' ? null : area,
-      seguridad: isConstruahorro === 'true' ? null : seguridad,
-      nombreCargo,
-      areaGeneral,
-      departamento,
-      proceso,
-      estructuraOrganizacional: estructuraOrganizacionalUrl,
-      poblacionFocalizada,
-      escolaridad,
-      area_formacion, // Cambiado de areaFormacion a area_formacion
-      estudiosComplementarios,
-      experiencia,
-      jefeInmediato,
-      supervisaA,
-      numeroPersonasCargo: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
-      tipoContrato,
-      misionCargo,
-      cursosCertificaciones,
-      requiereVehiculo,
-      tipoLicencia,
-      idiomas,
-      requiereViajar,
-      areasRelacionadas,
-      relacionamientoExterno,
-      isConstruahorro: isConstruahorro === 'true'
+      [fieldMapping.fecha]: fecha,
+      [fieldMapping.director]: director,
+      [fieldMapping.gerencia]: gerencia,
+      [fieldMapping.descripcion]: descripcion,
+      [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+      [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+      [fieldMapping.nombreCargo]: nombreCargo,
+      [fieldMapping.areaGeneral]: areaGeneral,
+      [fieldMapping.departamento]: departamento,
+      [fieldMapping.proceso]: proceso,
+      [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+      [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+      [fieldMapping.escolaridad]: escolaridad,
+      [fieldMapping.area_formacion]: area_formacion,
+      [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+      [fieldMapping.experiencia]: experiencia,
+      [fieldMapping.jefeInmediato]: jefeInmediato,
+      [fieldMapping.supervisaA]: supervisaA,
+      [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+      [fieldMapping.tipoContrato]: tipoContrato,
+      [fieldMapping.misionCargo]: misionCargo,
+      [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+      [fieldMapping.requiereVehiculo]: requiereVehiculo,
+      [fieldMapping.tipoLicencia]: tipoLicencia,
+      [fieldMapping.idiomas]: idiomas,
+      [fieldMapping.requiereViajar]: requiereViajar,
+      [fieldMapping.areasRelacionadas]: areasRelacionadas,
+      [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+      [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
     };
 
-    if (documentoUrl) updateFields.documento = documentoUrl;
+    if (documentoUrl) updateFields[fieldMapping.documento] = documentoUrl;
 
     const { data, error } = await supabase
       .from('yuli')
