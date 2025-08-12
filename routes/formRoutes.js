@@ -4,7 +4,10 @@ import { crearFormulario, respuestaArea, respuestaDirector, respuestaGerencia, r
 const router = express.Router();
 
 // Ruta para crear la solicitud (con carga de dos archivos: documento y estructuraOrganizacional)
-router.post('/yuli', upload, crearFormulario);
+router.post('/yuli', upload.fields([
+  { name: 'documento', maxCount: 1 },
+  { name: 'estructuraOrganizacional', maxCount: 1 }
+]), crearFormulario);
 
 // Rutas para registrar respuestas de cada nivel
 router.post('/dgdecision/:workflow_id/area', respuestaArea);
@@ -16,7 +19,14 @@ router.post('/dgdecision/:workflow_id/seguridad', upload.none(), respuestaSeguri
 router.get('/yuli/:workflow_id', obtenerHistorial);              // Historial de un workflow específico
 router.get('/yuli', obtenerTodasLasSolicitudes);                 // Todas las solicitudes
 
-router.post('/yuli/resend/:id', upload, reenviarFormulario);
-router.put('/yuli/:id', upload, actualizarFormulario);
+router.post('/yuli/resend/:id', upload.fields([
+  { name: 'documento', maxCount: 1 },
+  { name: 'estructuraOrganizacional', maxCount: 1 }
+]), reenviarFormulario);
 
-export default router; 
+router.put('/yuli/:id', upload.fields([
+  { name: 'documento', maxCount: 1 },
+  { name: 'estructuraOrganizacional', maxCount: 1 }
+]), actualizarFormulario);
+
+export default router;

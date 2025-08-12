@@ -8,10 +8,7 @@ import {
 } from '../services/emailService.js';
 import supabase from '../supabaseCliente.js';
 
-export const upload = multer({ storage: multer.memoryStorage() }).fields([
-  { name: 'documento', maxCount: 1 },
-  { name: 'estructuraOrganizacional', maxCount: 1 }
-]);
+export const upload = multer({ storage: multer.memoryStorage() });
 
 export const crearFormulario = async (req, res) => {
   try {
