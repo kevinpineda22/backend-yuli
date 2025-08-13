@@ -41,7 +41,10 @@ const fieldMapping = {
   area: 'area',
   descripcion: 'descripcion',
   documento: 'documento',
-  isConstruahorro: 'isConstruahorro'
+  isConstruahorro: 'isConstruahorro',
+  competenciasCulturales: 'competencias_culturales', // Nuevo campo
+  competenciasCargo: 'competencias_cargo', // Nuevo campo
+  responsabilidades: 'responsabilidades' // Nuevo campo
 };
 
 export const crearFormulario = async (req, res) => {
@@ -74,11 +77,15 @@ export const crearFormulario = async (req, res) => {
       idiomas,
       requiereViajar,
       areasRelacionadas,
-      relacionamientoExterno
+      relacionamientoExterno,
+      competenciasCulturales, // Nuevo campo
+      competenciasCargo, // Nuevo campo
+      responsabilidades // Nuevo campo
     } = req.body;
 
     const { documento, estructuraOrganizacional } = req.files || {};
 
+    // Validar campos obligatorios, incluyendo los nuevos campos dinámicos
     const requiredFields = {
       fecha,
       director,
@@ -94,13 +101,27 @@ export const crearFormulario = async (req, res) => {
       experiencia,
       jefeInmediato,
       tipoContrato,
-      misionCargo
+      misionCargo,
+      competenciasCulturales, // Nuevo campo obligatorio
+      competenciasCargo, // Nuevo campo obligatorio
+      responsabilidades // Nuevo campo obligatorio
     };
 
     for (const [key, value] of Object.entries(requiredFields)) {
       if (!value) {
         return res.status(400).json({ error: `El campo ${key} es obligatorio` });
       }
+    }
+
+    // Validar que los campos JSON sean arrays válidos
+    try {
+      if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+          !Array.isArray(JSON.parse(competenciasCargo)) ||
+          !Array.isArray(JSON.parse(responsabilidades))) {
+        return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
     }
 
     if (!isConstruahorro && !area) {
@@ -176,6 +197,9 @@ export const crearFormulario = async (req, res) => {
       [fieldMapping.requiereViajar]: requiereViajar,
       [fieldMapping.areasRelacionadas]: areasRelacionadas,
       [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+      [fieldMapping.competenciasCulturales]: competenciasCulturales, // Nuevo campo
+      [fieldMapping.competenciasCargo]: competenciasCargo, // Nuevo campo
+      [fieldMapping.responsabilidades]: responsabilidades, // Nuevo campo
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
@@ -548,7 +572,10 @@ export const reenviarFormulario = async (req, res) => {
       idiomas,
       requiereViajar,
       areasRelacionadas,
-      relacionamientoExterno
+      relacionamientoExterno,
+      competenciasCulturales, // Nuevo campo
+      competenciasCargo, // Nuevo campo
+      responsabilidades // Nuevo campo
     } = req.body;
     const { documento, estructuraOrganizacional } = req.files || {};
 
@@ -567,13 +594,27 @@ export const reenviarFormulario = async (req, res) => {
       experiencia,
       jefeInmediato,
       tipoContrato,
-      misionCargo
+      misionCargo,
+      competenciasCulturales, // Nuevo campo obligatorio
+      competenciasCargo, // Nuevo campo obligatorio
+      responsabilidades // Nuevo campo obligatorio
     };
 
     for (const [key, value] of Object.entries(requiredFields)) {
       if (!value) {
         return res.status(400).json({ error: `El campo ${key} es obligatorio` });
       }
+    }
+
+    // Validar que los campos JSON sean arrays válidos
+    try {
+      if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+          !Array.isArray(JSON.parse(competenciasCargo)) ||
+          !Array.isArray(JSON.parse(responsabilidades))) {
+        return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
     }
 
     if (!isConstruahorro && !area) {
@@ -648,6 +689,9 @@ export const reenviarFormulario = async (req, res) => {
       [fieldMapping.requiereViajar]: requiereViajar,
       [fieldMapping.areasRelacionadas]: areasRelacionadas,
       [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+      [fieldMapping.competenciasCulturales]: competenciasCulturales, // Nuevo campo
+      [fieldMapping.competenciasCargo]: competenciasCargo, // Nuevo campo
+      [fieldMapping.responsabilidades]: responsabilidades, // Nuevo campo
       estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
       observacion_area: null,
       observacion_director: null,
@@ -718,7 +762,10 @@ export const actualizarFormulario = async (req, res) => {
       idiomas,
       requiereViajar,
       areasRelacionadas,
-      relacionamientoExterno
+      relacionamientoExterno,
+      competenciasCulturales, // Nuevo campo
+      competenciasCargo, // Nuevo campo
+      responsabilidades // Nuevo campo
     } = req.body;
     const { documento, estructuraOrganizacional } = req.files || {};
 
@@ -737,13 +784,27 @@ export const actualizarFormulario = async (req, res) => {
       experiencia,
       jefeInmediato,
       tipoContrato,
-      misionCargo
+      misionCargo,
+      competenciasCulturales, // Nuevo campo obligatorio
+      competenciasCargo, // Nuevo campo obligatorio
+      responsabilidades // Nuevo campo obligatorio
     };
 
     for (const [key, value] of Object.entries(requiredFields)) {
       if (!value) {
         return res.status(400).json({ error: `El campo ${key} es obligatorio` });
       }
+    }
+
+    // Validar que los campos JSON sean arrays válidos
+    try {
+      if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+          !Array.isArray(JSON.parse(competenciasCargo)) ||
+          !Array.isArray(JSON.parse(responsabilidades))) {
+        return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
     }
 
     if (!isConstruahorro && !area) {
@@ -818,6 +879,9 @@ export const actualizarFormulario = async (req, res) => {
       [fieldMapping.requiereViajar]: requiereViajar,
       [fieldMapping.areasRelacionadas]: areasRelacionadas,
       [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+      [fieldMapping.competenciasCulturales]: competenciasCulturales, // Nuevo campo
+      [fieldMapping.competenciasCargo]: competenciasCargo, // Nuevo campo
+      [fieldMapping.responsabilidades]: responsabilidades, // Nuevo campo
       [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
     };
 
