@@ -37,11 +37,7 @@ const generateExcelAttachment = async (formData, workflow_id) => {
   ];
 
   const fields = [
-    { field: 'ID de la solicitud', value: workflow_id },
     { field: 'Fecha', value: formData.fecha },
-    { field: 'Director', value: formData.director },
-    { field: 'Gerencia', value: formData.gerencia },
-    { field: 'Seguridad', value: formData.seguridad || 'N/A' },
     { field: 'Área', value: formData.area || 'N/A' },
     { field: 'Descripción', value: formData.descripcion },
     { field: 'Nombre del cargo', value: formData.nombrecargo },
@@ -67,12 +63,6 @@ const generateExcelAttachment = async (formData, workflow_id) => {
     { field: 'Relacionamiento Externo', value: formData.relacionamientoexterno || 'N/A' },
     { field: 'Documento', value: formData.documento || 'N/A' },
     { field: 'Estructura Organizacional', value: formData.estructuraorganizacional },
-    { field: 'Estado', value: formData.estado },
-    { field: 'Observación Área', value: formData.observacion_area || 'N/A' },
-    { field: 'Observación Director', value: formData.observacion_director || 'N/A' },
-    { field: 'Observación Gerencia', value: formData.observacion_gerencia || 'N/A' },
-    { field: 'Observación Seguridad', value: formData.observacion_seguridad || 'N/A' },
-    { field: 'Es Construahorro', value: formData.isConstruahorro ? 'Sí' : 'No' },
   ];
 
   fields.forEach(({ field, value }) => worksheet.addRow({ field, value }));
