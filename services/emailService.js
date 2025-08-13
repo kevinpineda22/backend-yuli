@@ -103,20 +103,47 @@ const generateExcelAttachment = async (formData, workflow_id) => {
 
 const generateHtmlCorreo = (formData, workflow_id, approvalLink, rejectionLink, title) => {
   return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;">
-      <h2 style="color: #210D65; text-align: center;">${title}</h2>
-      <p><strong>Fecha:</strong> ${formData.fecha}</p>
-      <p><strong>Nombre del cargo:</strong> ${formData.nombrecargo}</p>
-      <p><strong>Área:</strong> ${formData.areageneral}</p>
-      <p><strong>Descripción:</strong> ${formData.descripcion}</p>
-      ${formData.documento ? `<p><strong>Documento:</strong> <a href="${formData.documento}" style="color: #FFD700;">Ver Documento</a></p>` : ''}
-      <p><strong>Estructura organizacional:</strong> <a href="${formData.estructuraorganizacional}" style="color: #FFD700;">Ver Archivo</a></p>
-      <p>Por favor, revisa los detalles completos de la solicitud en el archivo Excel adjunto y toma una decisión:</p>
-      <div style="text-align: center; margin-top: 20px;">
-        <a href="${approvalLink}" style="background-color: #210D65; color: #FFD700; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Aprobar</a>
-        <a href="${rejectionLink}" style="background-color: #FFD700; color: #210D65; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rechazar</a>
-      </div>
-    </div>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${title}</title>
+        </head>
+        <body style="margin:0; padding:0; background-color:#f2f2f2;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#f2f2f2;">
+            <tr>
+              <td align="center">
+                <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color:#ffffff; margin:20px auto; border:1px solid #dddddd;">
+                  <tr>
+                    <td align="center" style="padding:20px; background-color:#210D65;">
+                      <h2 style="margin:0; font-size:24px; color:#ffffff; font-family:Arial, sans-serif;">${title}</h2>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:20px; font-family:Arial, sans-serif; font-size:16px; color:#333333;">
+                      <p style="margin:0 0 10px 0;"><strong>Fecha:</strong> ${formData.fecha || 'No definido'}</p>
+                      <p style="margin:0 0 10px 0;"><strong>Nombre del cargo:</strong> ${formData.nombrecargo || 'No definido'}</p>
+                      <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.areageneral || 'No definido'}</p>
+                      <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'No definido'}</p>
+                      <p style="margin:0 0 10px 0;"><strong>Documento:</strong> ${formData.documento ? `<a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a>` : 'No adjuntado'}</p>
+                      <p style="margin:0 0 10px 0;"><strong>Estructura organizacional:</strong> ${formData.estructuraorganizacional ? `<a href="${formData.estructuraorganizacional}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Archivo</a>` : 'No adjuntado'}</p>
+                      <p style="margin:0 0 20px 0;">Por favor, revisa los detalles completos de la solicitud en el archivo Excel adjunto y toma una decisión:</p>
+                      <div style="text-align:center;">
+                        <a href="${approvalLink}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#28a745; color:#ffffff; text-decoration:none; border-radius:4px; margin-right:10px;">Aprobar</a>
+                        <a href="${rejectionLink}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#dc3545; color:#ffffff; text-decoration:none; border-radius:4px;">Rechazar</a>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:10px; background-color:#eeeeee; font-family:Arial, sans-serif; font-size:12px; color:#888888;">
+                      © ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
   `;
 };
 
