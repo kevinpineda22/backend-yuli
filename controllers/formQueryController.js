@@ -43,6 +43,30 @@ const inverseFieldMapping = Object.fromEntries(
     Object.entries(fieldMapping).map(([key, value]) => [value, key])
 );
 
+// Función auxiliar para procesar los datos
+const processData = (data) => {
+    return data.map(item => {
+        const newItem = {};
+        for (const [dbKey, value] of Object.entries(item)) {
+            const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
+            
+            // Convertir los strings JSON a objetos de JavaScript
+            if (dbKey === 'competencias_culturales' || dbKey === 'competencias_cargo' || dbKey === 'responsabilidades') {
+                try {
+                    // Si el valor existe, se parsea. Si no, se devuelve un array vacío.
+                    newItem[frontEndKey] = value ? JSON.parse(value) : [];
+                } catch (e) {
+                    console.error(`Error al parsear JSONb para ${dbKey}:`, e);
+                    newItem[frontEndKey] = [];
+                }
+            } else {
+                newItem[frontEndKey] = value;
+            }
+        }
+        return newItem;
+    });
+};
+
 export const obtenerHistorial = async (req, res) => {
     try {
         const { workflow_id } = req.params;
@@ -56,17 +80,8 @@ export const obtenerHistorial = async (req, res) => {
             console.error("Error en obtenerHistorial:", error);
             return res.status(500).json({ error: error.message });
         }
-
-        // Aquí es donde se hace la magia: transformar los datos antes de enviarlos
-        const translatedData = data.map(item => {
-            const newItem = {};
-            for (const [dbKey, value] of Object.entries(item)) {
-                const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
-                newItem[frontEndKey] = value;
-            }
-            return newItem;
-        });
-
+        
+        const translatedData = processData(data);
         res.json({ historial: translatedData });
     } catch (err) {
         console.error("Error en obtenerHistorial:", err);
@@ -86,17 +101,7 @@ export const obtenerTodasLasSolicitudes = async (req, res) => {
             return res.status(500).json({ error: error.message });
         }
 
-        // Aquí está el cambio clave. Mapear los nombres antes de enviar.
-        const translatedData = data.map(item => {
-            const newItem = {};
-            for (const [dbKey, value] of Object.entries(item)) {
-                // Usa el mapeo inverso para encontrar el nombre del frontend
-                const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
-                newItem[frontEndKey] = value;
-            }
-            return newItem;
-        });
-
+        const translatedData = processData(data);
         res.json({ historial: translatedData });
     } catch (err) {
         console.error("Error en obtenerTodasLasSolicitudes:", err);
