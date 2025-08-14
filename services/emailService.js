@@ -43,7 +43,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
 
-  // Colores / estilos
+  // ---------------- Colores / estilos ----------------
   const COLOR_TITLE = 'FF210D65';
   const COLOR_SECTION = 'FF89DC00';
   const COLOR_HEADER_GRAY = 'FFDCDCDC';
@@ -57,17 +57,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   // Columnas (ajustadas para que headers A/B/C entren)
   worksheet.columns = [
     { width: 36 }, // A: etiqueta/competencia
-    { width: 14 }, // B (A Alto) - más ancho
+    { width: 14 }, // B (A Alto)
     { width: 14 }, // C (B Bueno)
     { width: 16 }, // D (C Min)
     { width: 80 }  // E (Definición / contenido)
   ];
 
   const COMPACT_ROW_HEIGHT = 14;
-  const HEADER_ROW_HEIGHT = 34; // aumentar para permitir múltiples líneas en el header
-  const SMALL_HEADER_FONT_SIZE = 9; // reducir font del header para que quepa
+  const HEADER_ROW_HEIGHT = 34; // alto del header para que se vean las líneas
+  const SMALL_HEADER_FONT_SIZE = 9;
 
-  // Helpers
+  // ---------------- Helpers ----------------
   const normalizeText = (s) => {
     if (s === null || s === undefined) return '';
     return String(s)
@@ -78,20 +78,25 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       .trim();
   };
 
+  // Detección robusta del nivel -> devuelve 2|3|4 (columnas B,C,D) o null
   const nivelToCol = (nivel) => {
     if (nivel === null || nivel === undefined) return null;
     const s = normalizeText(String(nivel));
+
     if (/^\d+$/.test(s)) {
       if (s === '1') return 2;
       if (s === '2') return 3;
       if (s === '3') return 4;
     }
+
     if (/\balto\b/.test(s) || s === 'a') return 2;
     if (/\bbueno\b/.test(s) || /\bcasi\b/.test(s) || s === 'b') return 3;
-    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\bocasiones\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
+    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\bmin necesario\b/.test(s) || /\bocasiones\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
+
     return null;
   };
 
+  // parse array / JSON-string / newline separated
   const parseToArray = (raw) => {
     if (raw === null || raw === undefined) return [];
     if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -104,7 +109,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
           if (Array.isArray(parsed)) return parsed.filter(Boolean);
           return [parsed];
         } catch (e) {
-          // fallback a split por líneas
+          // fallback
         }
       }
       return s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -150,7 +155,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
-  // Título principal
+  // ---------------- TÍTULO PRINCIPAL ----------------
   worksheet.mergeCells('A1:E1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
@@ -162,7 +167,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 4;
 
-  // -------- INFORMACIÓN GENERAL --------
+  // ---------------- INFORMACIÓN GENERAL ----------------
   addSectionTitle('INFORMACIÓN GENERAL');
 
   addField('Nombre del cargo', formData.nombrecargo || formData.nombreCargo);
@@ -172,32 +177,14 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addHyperlink('Documento', formData.documento);
   addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
-  // Población focalizada: mostrar solamente las opciones seleccionadas
-  addField('Población focalizada', '');
+  // POBLACIÓN FOCALIZADA: mostrar en la misma fila solo las opciones seleccionadas o 'Ninguna'
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
   const poblacionArr = parseToArray(poblacionRaw).map(x => normalizeText(x));
-
-  // si se seleccionó "ninguna" o no hay selecciones -> mostrar "Ninguna"
-  const noneSelected = poblacionArr.length === 0 || poblacionArr.some(v => /ninguna|no|n\/a|na/.test(v));
-  if (noneSelected) {
-    const row = worksheet.addRow(['  Ninguna', '', '', '', '']);
-    row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(5).alignment = { horizontal: 'center', vertical: 'top' };
-    [row.getCell(1), row.getCell(5)].forEach(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; });
-    row.height = COMPACT_ROW_HEIGHT;
-  } else {
-    // mostrar solo las seleccionadas (en el orden de poblacionOptions)
-    poblacionOptions.forEach(opt => {
-      if (poblacionArr.includes(normalizeText(opt))) {
-        const row = worksheet.addRow([`  ${opt}`, '', '', '', 'X']);
-        row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-        row.getCell(5).alignment = { horizontal: 'center', vertical: 'top' };
-        [row.getCell(1), row.getCell(5)].forEach(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; });
-        row.height = COMPACT_ROW_HEIGHT;
-      }
-    });
-  }
+  const noneSelected = poblacionArr.length === 0 || poblacionArr.some(v => /^(ninguna|no|n\/a|na)$/i.test(v));
+  const selectedOptions = noneSelected ? [] : poblacionOptions.filter(opt => poblacionArr.includes(normalizeText(opt)));
+  const displayPoblacion = selectedOptions.length > 0 ? selectedOptions.join(', ') : 'Ninguna';
+  addField('Población focalizada', displayPoblacion);
 
   addField('Escolaridad', formData.escolaridad || formData.escolaridadActual);
   addField('Área de formación', formData.area_formacion || formData.areaFormacion);
@@ -210,8 +197,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // -------- DESCRIPCIÓN DEL CARGO --------
+  // ---------------- DESCRIPCIÓN DEL CARGO ----------------
   addSectionTitle('DESCRIPCIÓN DEL CARGO');
+
   addField('Misión del cargo (Necesidad real del cargo)', formData.misioncargo || formData.misionDelCargo || formData.mision);
   addField('Conocimientos técnicos o específicos', formData.conocimientos || formData.conocimientosTecnicos || formData.conocimientosTecnicosEspecificos);
   addField('Cursos o certificaciones', formData.cursoscertificaciones || formData.cursosCertificaciones || 'N/A');
@@ -224,7 +212,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // -------- COMPETENCIAS REQUERIDAS (cabecera con mayor altura para ver texto) --------
+  // ---------------- COMPETENCIAS REQUERIDAS ----------------
   const compTitleRow = worksheet.addRow([]);
   worksheet.mergeCells(`A${compTitleRow.number}:E${compTitleRow.number}`);
   const compTitleCell = worksheet.getCell(`A${compTitleRow.number}`);
@@ -245,7 +233,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       'Definición'
     ]);
 
-    // merge left label across the two header rows
     worksheet.mergeCells(`A${topRow.number}:A${headerRow.number}`);
     const leftCell = worksheet.getCell(`A${topRow.number}`);
     leftCell.value = leftLabel;
@@ -254,10 +241,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     leftCell.alignment = { horizontal: 'center', vertical: 'middle' };
     leftCell.border = THIN_BORDER;
 
-    // style headerRow cells B..E (reduce font size and increase height)
     headerRow.eachCell((cell, colNumber) => {
       if (colNumber === 1) return;
-      cell.font = { name: 'Arial', bold: true, size: SMALL_HEADER_FONT_SIZE };
+      cell.font = { bold: true, size: SMALL_HEADER_FONT_SIZE };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = THIN_BORDER;
@@ -267,7 +253,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(headerRow.number).height = HEADER_ROW_HEIGHT;
   };
 
-  // write competency rows (mark X in the correct column)
+  // escribe filas de competencias y marca X en la columna correcta
   const writeCompetencyRows = (rawList) => {
     const parsed = parseToArray(rawList);
     const normalized = parsed.map(item => {
@@ -307,6 +293,8 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       r.eachCell({ includeEmpty: true }, cell => { cell.border = THIN_BORDER; });
       r.height = COMPACT_ROW_HEIGHT;
     });
+
+    worksheet.addRow([]).height = 6;
   };
 
   // Competencias culturales
@@ -319,7 +307,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // RESPONSABILIDADES (mismo comportamiento anterior)
+  // ---------------- RESPONSABILIDADES ----------------
   addSectionTitle('RESPONSABILIDADES');
   const rawResp = formData.responsabilidades || formData.responsabilidadesList || formData.responsabilidadesArray || [];
   const parsedResp = parseToArray(rawResp);
@@ -366,7 +354,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // OTROS DATOS
+  // ---------------- OTROS DATOS ----------------
   addSectionTitle('OTROS DATOS');
   addField('Cursos/Certificaciones', formData.cursoscertificaciones || formData.cursosCertificaciones);
   addField('Requiere Vehículo', formData.requierevehiculo || formData.requiereVehiculo);
@@ -378,7 +366,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // DOCUMENTOS ADJUNTOS
+  // ---------------- DOCUMENTOS ADJUNTOS ----------------
   addSectionTitle('DOCUMENTOS ADJUNTOS');
   addHyperlink('Documento', formData.documento);
   addHyperlink('Estructura Organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
@@ -390,6 +378,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     });
   });
 
+  // generar buffer y devolver attachment
   const buffer = await workbook.xlsx.writeBuffer();
   return {
     filename: `Solicitud_${workflow_id}.xlsx`,
@@ -397,6 +386,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
+
 
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
