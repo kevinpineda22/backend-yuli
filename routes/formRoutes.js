@@ -1,23 +1,28 @@
 import express from 'express';
-import { crearFormulario, respuestaArea, respuestaDirector, respuestaGerencia, respuestaSeguridad, obtenerHistorial, obtenerTodasLasSolicitudes, upload, reenviarFormulario, actualizarFormulario } from '../controllers/formController.js';
+import {
+  crearFormulario,
+  reenviarFormulario,
+  actualizarFormulario,
+  upload
+} from '../controllers/formCreationController.js';
+import {
+  respuestaArea,
+  respuestaDirector,
+  respuestaGerencia,
+  respuestaSeguridad
+} from '../controllers/formResponseController.js';
+import {
+  obtenerHistorial,
+  obtenerTodasLasSolicitudes
+} from '../controllers/formQueryController.js';
 
 const router = express.Router();
 
-// Ruta para crear la solicitud (con carga de dos archivos: documento y estructuraOrganizacional)
+// Rutas para creación y actualización de formularios
 router.post('/yuli', upload.fields([
   { name: 'documento', maxCount: 1 },
   { name: 'estructuraOrganizacional', maxCount: 1 }
 ]), crearFormulario);
-
-// Rutas para registrar respuestas de cada nivel
-router.post('/dgdecision/:workflow_id/area', respuestaArea);
-router.post('/dgdecision/:workflow_id/director', respuestaDirector);
-router.post('/dgdecision/:workflow_id/gerencia', respuestaGerencia);
-router.post('/dgdecision/:workflow_id/seguridad', upload.none(), respuestaSeguridad);
-
-// Rutas para historial y actualización
-router.get('/yuli/:workflow_id', obtenerHistorial);              // Historial de un workflow específico
-router.get('/yuli', obtenerTodasLasSolicitudes);                 // Todas las solicitudes
 
 router.post('/yuli/resend/:id', upload.fields([
   { name: 'documento', maxCount: 1 },
@@ -28,5 +33,15 @@ router.put('/yuli/:id', upload.fields([
   { name: 'documento', maxCount: 1 },
   { name: 'estructuraOrganizacional', maxCount: 1 }
 ]), actualizarFormulario);
+
+// Rutas para respuestas
+router.post('/dgdecision/:workflow_id/area', respuestaArea);
+router.post('/dgdecision/:workflow_id/director', respuestaDirector);
+router.post('/dgdecision/:workflow_id/gerencia', respuestaGerencia);
+router.post('/dgdecision/:workflow_id/seguridad', upload.none(), respuestaSeguridad);
+
+// Rutas para consultas
+router.get('/yuli/:workflow_id', obtenerHistorial);
+router.get('/yuli', obtenerTodasLasSolicitudes);
 
 export default router;
