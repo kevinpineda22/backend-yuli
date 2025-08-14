@@ -1,228 +1,520 @@
-import nodemailer from 'nodemailer';
-import ExcelJS from 'exceljs';
+import multer from 'multer';
+import { sendEmail, generarHtmlCorreoArea, generarHtmlCorreoDirector, generarHtmlCorreoGerencia, generarHtmlCorreoSeguridad } from '../services/emailService.js';
+import supabase from '../supabaseCliente.js';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT, 10),
-  secure: process.env.SMTP_PORT === '465',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+export const upload = multer({ storage: multer.memoryStorage() });
 
-export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
-  try {
-    await transporter.sendMail({
-      from: `"Merkahorro" <${process.env.SMTP_FROM}>`,
-      to,
-      subject,
-      html: htmlContent,
-      attachments,
-    });
-    console.log(`📨 Correo enviado a ${to}`);
-  } catch (error) {
-    console.error('❌ Error al enviar el correo:', error);
-    throw error;
-  }
+// Mapeo de nombres de campos del frontend a columnas de la base de datos
+const fieldMapping = {
+    nombreCargo: 'nombrecargo',
+    areaGeneral: 'areageneral',
+    departamento: 'departamento',
+    proceso: 'proceso',
+    estructuraOrganizacional: 'estructuraorganizacional',
+    poblacionFocalizada: 'poblacionfocalizada',
+    escolaridad: 'escolaridad',
+    area_formacion: 'area_formacion',
+    estudiosComplementarios: 'estudioscomplementarios',
+    experiencia: 'experiencia',
+    jefeInmediato: 'jefeinmediato',
+    supervisaA: 'supervisaa',
+    numeroPersonasCargo: 'numeropersonascargo',
+    tipoContrato: 'tipocontrato',
+    misionCargo: 'misioncargo',
+    cursosCertificaciones: 'cursoscertificaciones',
+    requiereVehiculo: 'requierevehiculo',
+    tipoLicencia: 'tipolicencia',
+    idiomas: 'idiomas',
+    requiereViajar: 'requiereviajar',
+    areasRelacionadas: 'areasrelacionadas',
+    relacionamientoExterno: 'relacionamientoexterno',
+    fecha: 'fecha',
+    director: 'director',
+    gerencia: 'gerencia',
+    seguridad: 'seguridad',
+    area: 'area',
+    descripcion: 'descripcion',
+    documento: 'documento',
+    isConstruahorro: 'isConstruahorro',
+    competenciasCulturales: 'competencias_culturales',
+    competenciasCargo: 'competencias_cargo',
+    responsabilidades: 'responsabilidades'
 };
 
-const formatValueForExcel = (value) => {
-  if (Array.isArray(value)) {
-    // Si es un array de objetos (competencias)
-    if (typeof value[0] === 'object' && value[0].hasOwnProperty('competencia')) {
-      return value.map(c => `${c.competencia} (${c.nivel}) - ${c.definicion}`).join('\n');
-    }
-    // Si es un array simple (responsabilidades)
-    return value.join('\n');
-  }
-  return value || 'N/A';
-};
-
-const generateExcelAttachment = async (formData, workflow_id) => {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Solicitud');
-
-  worksheet.columns = [
-    { header: 'Campo', key: 'field', width: 35 },
-    { header: 'Valor', key: 'value', width: 60, style: { alignment: { wrapText: true } } },
-  ];
- 
-  const fields = [
-    { field: 'Fecha', value: formData.fecha },
-    { field: 'Área', value: formData.area || 'N/A' },
-    { field: 'Descripción', value: formData.descripcion },
-    { field: 'Nombre del cargo', value: formData.nombrecargo },
-    { field: 'Área General', value: formData.areageneral },
-    { field: 'Departamento', value: formData.departamento },
-    { field: 'Proceso', value: formData.proceso },
-    { field: 'Población Focalizada', value: formData.poblacionfocalizada || 'N/A' },
-    { field: 'Escolaridad', value: formData.escolaridad },
-    { field: 'Área de Formación', value: formData.area_formacion || 'N/A' },
-    { field: 'Estudios Complementarios', value: formData.estudioscomplementarios || 'N/A' },
-    { field: 'Experiencia', value: formData.experiencia },
-    { field: 'Jefe Inmediato', value: formData.jefeinmediato },
-    { field: 'Supervisa a', value: formData.supervisaa || 'N/A' },
-    { field: 'Número de Personas a Cargo', value: formData.numeropersonascargo || 'N/A' },
-    { field: 'Tipo de Contrato', value: formData.tipocontrato },
-    { field: 'Misión del Cargo', value: formData.misioncargo },
-    { field: 'Competencias Culturales', value: formatValueForExcel(formData.competencias_culturales) },
-    { field: 'Competencias del Cargo', value: formatValueForExcel(formData.competencias_cargo) },
-    { field: 'Responsabilidades', value: formatValueForExcel(formData.responsabilidades) },
-    { field: 'Cursos/Certificaciones', value: formData.cursoscertificaciones || 'N/A' },
-    { field: 'Requiere Vehículo', value: formData.requierevehiculo || 'N/A' },
-    { field: 'Tipo de Licencia', value: formData.tipolicencia || 'N/A' },
-    { field: 'Idiomas', value: formData.idiomas || 'N/A' },
-    { field: 'Requiere Viajar', value: formData.requiereviajar || 'N/A' },
-    { field: 'Áreas Relacionadas', value: formData.areasrelacionadas || 'N/A' },
-    { field: 'Relacionamiento Externo', value: formData.relacionamientoexterno || 'N/A' },
-    // Manejo especial para links de documentos
-    { field: 'Documento', value: formData.documento ? { text: 'Ver Documento', hyperlink: formData.documento } : 'N/A' },
-    { field: 'Estructura Organizacional', value: formData.estructuraorganizacional ? { text: 'Ver Archivo', hyperlink: formData.estructuraorganizacional } : 'N/A' },
-  ];
-
-  fields.forEach(({ field, value }) => {
-    const row = worksheet.addRow({ field, value });
-    if (typeof value === 'object' && value.text) {
-      row.getCell(2).value = value;
-      row.getCell(2).font = { color: { argb: 'FF0000FF' }, underline: true };
-    }
-  });
-
-  worksheet.getRow(1).font = { bold: true };
-  worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF89DC00' } }; // Verde Merkahorro
-  worksheet.eachRow((row, rowNumber) => {
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' },
-      };
-      if (rowNumber % 2 === 0) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F2F5' } };
-      }
-    });
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  return {
-    filename: `Solicitud_${workflow_id}.xlsx`,
-    content: buffer,
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  };
-};
-
-const renderList = (label, items) => {
-    if (!items || items.length === 0) {
-        return '';
-    }
-    const listItems = items.map(item => {
-        if (typeof item === 'object') {
-            return `<li>${item.competencia} (${item.nivel}) - ${item.definicion}</li>`;
+// Función auxiliar para parsear los campos JSON del body a objetos de JS
+const parseJSONFields = (data) => {
+    const newData = { ...data };
+    try {
+        if (newData.competenciasCulturales && typeof newData.competenciasCulturales === 'string') {
+            newData.competenciasCulturales = JSON.parse(newData.competenciasCulturales);
         }
-        return `<li>${item}</li>`;
-    }).join('');
-
-    return `
-        <h3 style="margin:20px 0 10px 0; font-size:18px; color:#210D65; font-family:Arial, sans-serif;">${label}</h3>
-        <ul style="margin:0; padding:0 0 0 20px; list-style-type:disc; color:#333333; font-family:Arial, sans-serif; font-size:16px;">
-            ${listItems}
-        </ul>
-    `;
+        if (newData.competenciasCargo && typeof newData.competenciasCargo === 'string') {
+            newData.competenciasCargo = JSON.parse(newData.competenciasCargo);
+        }
+        if (newData.responsabilidades && typeof newData.responsabilidades === 'string') {
+            newData.responsabilidades = JSON.parse(newData.responsabilidades);
+        }
+    } catch (e) {
+        console.error("Error al parsear JSON en el controlador:", e);
+        // Si hay un error, se asegura de que los campos sean al menos arrays vacíos.
+        newData.competenciasCulturales = newData.competenciasCulturales || [];
+        newData.competenciasCargo = newData.competenciasCargo || [];
+        newData.responsabilidades = newData.responsabilidades || [];
+    }
+    return newData;
 };
 
+export const crearFormulario = async (req, res) => {
+    try {
+        const {
+            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
+            estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
+            tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
+            idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        } = req.body;
 
-const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
-  return `
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${title}</title>
-        <style>
-          body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
-          .container { width: 100%; max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-          .header { background-color: #210D65; padding: 30px; text-align: center; }
-          .header h2 { margin: 0; font-size: 28px; color: #ffffff; }
-          .content { padding: 30px; color: #333333; line-height: 1.6; }
-          .content h3 { border-left: 4px solid #89DC00; padding-left: 10px; margin: 30px 0 15px 0; color: #210D65; }
-          .content p strong { color: #210D65; }
-          .list { margin: 0; padding: 0 0 0 25px; list-style-type: disc; }
-          .list li { margin-bottom: 8px; }
-          .document-link { color: #210D65; text-decoration: none; font-weight: bold; }
-          .document-link:hover { text-decoration: underline; }
-          .button-container { text-align: center; margin: 20px 0; }
-          .button { display: inline-block; padding: 12px 25px; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin: 0 10px; transition: background-color 0.3s ease; }
-          .approve-button { background-color: #28a745; }
-          .reject-button { background-color: #dc3545; }
-          .footer { background-color: #e9ecef; text-align: center; padding: 20px; font-size: 12px; color: #6c757d; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2>${title}</h2>
-          </div>
-          <div class="content">
-            <p><strong>Hola,</strong></p>
-            <p>Se ha creado una nueva solicitud de descripción de perfil de cargo para tu revisión. Por favor, revisa los detalles a continuación:</p>
+        const { documento, estructuraOrganizacional } = req.files || {};
 
-            <h3>Información General</h3>
-            <p><strong>Nombre del cargo:</strong> ${formData.nombrecargo || 'N/A'}</p>
-            <p><strong>Área:</strong> ${formData.areageneral || 'N/A'}</p>
-            <p><strong>Departamento:</strong> ${formData.departamento || 'N/A'}</p>
-            <p><strong>Proceso:</strong> ${formData.proceso || 'N/A'}</p>
-            <p><strong>Misión del cargo:</strong> ${formData.misioncargo || 'N/A'}</p>
+        // Validar campos obligatorios
+        const requiredFields = {
+            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+            escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        };
 
-            ${renderList('Competencias Culturales', formData.competencias_culturales)}
-            ${renderList('Competencias del Cargo', formData.competencias_cargo)}
-            ${renderList('Responsabilidades', formData.responsabilidades)}
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (!value) {
+                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+            }
+        }
 
-            <p>Por favor, revisa los detalles completos de la solicitud en el archivo Excel adjunto y toma una decisión:</p>
-            
-            <div class="button-container">
-              <a href="${approvalLink}" class="button approve-button">Aprobar</a>
-              <a href="${rejectionLink}" class="button reject-button">Rechazar</a>
-            </div>
+        // Validar arrays JSON
+        try {
+            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+                !Array.isArray(JSON.parse(competenciasCargo)) ||
+                !Array.isArray(JSON.parse(responsabilidades))) {
+                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+            }
+        } catch (e) {
+            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+        }
 
-            <p><strong>Documentos Adjuntos:</strong></p>
-            <p>
-              ${formData.documento ? `<strong>• Documento:</strong> <a href="${formData.documento}" class="document-link">Ver Documento</a>` : 'No se adjuntó un documento.'}
-              <br/>
-              ${formData.estructuraorganizacional ? `<strong>• Estructura Organizacional:</strong> <a href="${formData.estructuraorganizacional}" class="document-link">Ver Archivo</a>` : 'No se adjuntó la estructura organizacional.'}
-            </p>
-          </div>
-          <div class="footer">
-            © ${new Date().getFullYear()} Merkahorro. Todos los derechos reservados.
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+        if (!isConstruahorro && !area) {
+            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        }
+
+        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+        }
+
+        // Subir documento
+        let documentoUrl = null;
+        if (documento && documento[0]) {
+            const fileName = `${Date.now()}_${documento[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo documento:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo documento' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            documentoUrl = publicUrlData.publicUrl;
+        }
+
+        // Subir estructura organizacional
+        let estructuraOrganizacionalUrl = null;
+        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else {
+            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
+        }
+
+        // Mapear datos
+        const formData = {
+            [fieldMapping.fecha]: fecha,
+            [fieldMapping.documento]: documentoUrl,
+            [fieldMapping.director]: director,
+            [fieldMapping.gerencia]: gerencia,
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.descripcion]: descripcion,
+            [fieldMapping.nombreCargo]: nombreCargo,
+            [fieldMapping.areaGeneral]: areaGeneral,
+            [fieldMapping.departamento]: departamento,
+            [fieldMapping.proceso]: proceso,
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.escolaridad]: escolaridad,
+            [fieldMapping.area_formacion]: area_formacion,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.experiencia]: experiencia,
+            [fieldMapping.jefeInmediato]: jefeInmediato,
+            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: tipoContrato,
+            [fieldMapping.misionCargo]: misionCargo,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+            [fieldMapping.requiereVehiculo]: requiereVehiculo,
+            [fieldMapping.tipoLicencia]: tipoLicencia,
+            [fieldMapping.idiomas]: idiomas,
+            [fieldMapping.requiereViajar]: requiereViajar,
+            [fieldMapping.areasRelacionadas]: areasRelacionadas,
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.competenciasCulturales]: competenciasCulturales,
+            [fieldMapping.competenciasCargo]: competenciasCargo,
+            [fieldMapping.responsabilidades]: responsabilidades,
+            estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
+            observacion_area: null,
+            observacion_director: null,
+            observacion_gerencia: null,
+            observacion_seguridad: null,
+            role: 'creador',
+            [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
+        };
+
+        const { data, error } = await supabase
+            .from('yuli')
+            .insert(formData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error al insertar en Supabase:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        const workflow_id = data.id;
+        await supabase.from('yuli').update({ workflow_id }).eq('id', workflow_id);
+
+        // Procesar los datos para que el servicio de correo reciba arrays
+        const processedFormData = parseJSONFields({ 
+            ...data,
+            competenciasCulturales: req.body.competenciasCulturales,
+            competenciasCargo: req.body.competenciasCargo,
+            responsabilidades: req.body.responsabilidades,
+        });
+
+        const emailRecipient = isConstruahorro === 'true' ? director : area;
+        const emailSubject = isConstruahorro === 'true' ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
+        
+        const emailData = await (isConstruahorro === 'true'
+            ? generarHtmlCorreoDirector({ ...processedFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
+            : generarHtmlCorreoArea({ ...processedFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
+
+        await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
+
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}`, workflow_id });
+    } catch (err) {
+        console.error("Error en crearFormulario:", err);
+        res.status(500).json({ error: err.message || "Error interno del servidor" });
+    }
 };
 
-// ... (Las funciones generarHtmlCorreoArea, generarHtmlCorreoDirector, etc. se mantienen igual, pero ahora usan la nueva `generateHtmlCorreo`) ...
+export const reenviarFormulario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
+            estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
+            tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
+            idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        } = req.body;
+        const { documento, estructuraOrganizacional } = req.files || {};
 
-export const generarHtmlCorreoArea = async (formData) => {
-  const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Área');
-  const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
-  return { html, attachments: [excelAttachment] };
+        const requiredFields = {
+            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+            escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        };
+
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (!value) {
+                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+            }
+        }
+
+        try {
+            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+                !Array.isArray(JSON.parse(competenciasCargo)) ||
+                !Array.isArray(JSON.parse(responsabilidades))) {
+                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+            }
+        } catch (e) {
+            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+        }
+
+        if (!isConstruahorro && !area) {
+            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        }
+
+        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+        }
+
+        let documentoUrl = null;
+        if (documento && documento[0]) {
+            const fileName = `${Date.now()}_${documento[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo documento:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo documento' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            documentoUrl = publicUrlData.publicUrl;
+        }
+
+        let estructuraOrganizacionalUrl = null;
+        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else {
+            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
+        }
+
+        const updates = {
+            [fieldMapping.fecha]: fecha,
+            [fieldMapping.director]: director,
+            [fieldMapping.gerencia]: gerencia,
+            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+            [fieldMapping.descripcion]: descripcion,
+            [fieldMapping.nombreCargo]: nombreCargo,
+            [fieldMapping.areaGeneral]: areaGeneral,
+            [fieldMapping.departamento]: departamento,
+            [fieldMapping.proceso]: proceso,
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.escolaridad]: escolaridad,
+            [fieldMapping.area_formacion]: area_formacion,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.experiencia]: experiencia,
+            [fieldMapping.jefeInmediato]: jefeInmediato,
+            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: tipoContrato,
+            [fieldMapping.misionCargo]: misionCargo,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+            [fieldMapping.requiereVehiculo]: requiereVehiculo,
+            [fieldMapping.tipoLicencia]: tipoLicencia,
+            [fieldMapping.idiomas]: idiomas,
+            [fieldMapping.requiereViajar]: requiereViajar,
+            [fieldMapping.areasRelacionadas]: areasRelacionadas,
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.competenciasCulturales]: competenciasCulturales,
+            [fieldMapping.competenciasCargo]: competenciasCargo,
+            [fieldMapping.responsabilidades]: responsabilidades,
+            estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
+            observacion_area: null,
+            observacion_director: null,
+            observacion_gerencia: null,
+            observacion_seguridad: null,
+            [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
+        };
+
+        if (documentoUrl) updates[fieldMapping.documento] = documentoUrl;
+
+        const { data: updated, error: updateError } = await supabase
+            .from('yuli')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error("Error al actualizar en reenviarFormulario:", updateError);
+            return res.status(500).json({ error: updateError.message });
+        }
+
+        const workflow_id = updated.workflow_id;
+        
+        // Procesar los datos para que el servicio de correo reciba arrays
+        const processedFormData = parseJSONFields({ 
+            ...updated,
+            competenciasCulturales: req.body.competenciasCulturales,
+            competenciasCargo: req.body.competenciasCargo,
+            responsabilidades: req.body.responsabilidades,
+        });
+
+        const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
+        const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
+        
+        const emailData = await (isConstruahorro === 'true'
+            ? generarHtmlCorreoDirector({ ...processedFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
+            : generarHtmlCorreoArea({ ...processedFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
+
+        await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
+
+        res.json({ message: "Solicitud reenviada, flujo reiniciado y correo enviado a " + (isConstruahorro === 'true' ? 'director' : 'área') });
+    } catch (err) {
+        console.error("Error en reenviarFormulario:", err);
+        res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
+    }
 };
 
-export const generarHtmlCorreoDirector = async (formData) => {
-  const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Director');
-  const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
-  return { html, attachments: [excelAttachment] };
-};
+export const actualizarFormulario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
+            estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
+            tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
+            idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        } = req.body;
+        const { documento, estructuraOrganizacional } = req.files || {};
 
-export const generarHtmlCorreoGerencia = async (formData) => {
-  const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Gerencia');
-  const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
-  return { html, attachments: [excelAttachment] };
-};
+        const requiredFields = {
+            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+            escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
+            competenciasCulturales, competenciasCargo, responsabilidades
+        };
 
-export const generarHtmlCorreoSeguridad = async (formData) => {
-  const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Seguridad y Salud en el Trabajo');
-  const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
-  return { html, attachments: [excelAttachment] };
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (!value) {
+                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+            }
+        }
+
+        try {
+            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
+                !Array.isArray(JSON.parse(competenciasCargo)) ||
+                !Array.isArray(JSON.parse(responsabilidades))) {
+                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
+            }
+        } catch (e) {
+            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+        }
+
+        if (!isConstruahorro && !area) {
+            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        }
+
+        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+        }
+
+        let documentoUrl = null;
+        if (documento && documento[0]) {
+            const fileName = `${Date.now()}_${documento[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo documento:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo documento' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            documentoUrl = publicUrlData.publicUrl;
+        }
+
+        let estructuraOrganizacionalUrl = null;
+        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else {
+            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
+        }
+
+        const updateFields = {
+            [fieldMapping.fecha]: fecha,
+            [fieldMapping.director]: director,
+            [fieldMapping.gerencia]: gerencia,
+            [fieldMapping.descripcion]: descripcion,
+            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
+            [fieldMapping.nombreCargo]: nombreCargo,
+            [fieldMapping.areaGeneral]: areaGeneral,
+            [fieldMapping.departamento]: departamento,
+            [fieldMapping.proceso]: proceso,
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.escolaridad]: escolaridad,
+            [fieldMapping.area_formacion]: area_formacion,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.experiencia]: experiencia,
+            [fieldMapping.jefeInmediato]: jefeInmediato,
+            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: tipoContrato,
+            [fieldMapping.misionCargo]: misionCargo,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
+            [fieldMapping.requiereVehiculo]: requiereVehiculo,
+            [fieldMapping.tipoLicencia]: tipoLicencia,
+            [fieldMapping.idiomas]: idiomas,
+            [fieldMapping.requiereViajar]: requiereViajar,
+            [fieldMapping.areasRelacionadas]: areasRelacionadas,
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.competenciasCulturales]: competenciasCulturales,
+            [fieldMapping.competenciasCargo]: competenciasCargo,
+            [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
+        };
+
+        if (documentoUrl) updateFields[fieldMapping.documento] = documentoUrl;
+
+        const { data, error } = await supabase
+            .from('yuli')
+            .update(updateFields)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error al actualizar en actualizarFormulario:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json({ message: "✅ Solicitud actualizada correctamente", data });
+    } catch (err) {
+        console.error("Error en actualizarFormulario:", err);
+        res.status(500).json({ error: err.message || "Error interno al actualizar solicitud" });
+    }
 };
