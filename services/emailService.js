@@ -40,173 +40,149 @@ const formatValueForExcel = (value) => {
 };
 
 export const generateExcelAttachment = async (formData, workflow_id) => {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
-  const primaryColor = 'FF210D65'; // Azul oscuro (hex)
-  const secondaryColor = 'FF89DC00'; // Verde Merkahorro (hex)
-  const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
+    const primaryColor = 'FF210D65'; // Azul oscuro (hex)
+    const secondaryColor = 'FF89DC00'; // Verde Merkahorro (hex)
+    const lightGray = 'FFF0F2F5'; // Gris claro (hex)
+    const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  // Definir anchos de columnas
-  worksheet.columns = [{ width: 35 }, { width: 60 }];
+    // --- Funciones auxiliares movidas dentro del scope ---
+    const addRowWithStyle = (field, value) => {
+        const row = worksheet.addRow([field, value]);
+        const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
+        fieldCell.font = { bold: true };
+        [fieldCell, valueCell].forEach(cell => {
+            cell.border = {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+            cell.alignment = { wrapText: true, vertical: 'top' };
+        });
+    };
 
-  // Título principal
-  worksheet.mergeCells('A1:B1');
-  const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'Detalles de la Solicitud de Perfil de Cargo';
-  titleCell.style = {
-    font: { ...headerFont, size: 16 },
-    alignment: { horizontal: 'center', vertical: 'middle' },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } },
-    border: {
-      top: { style: 'thin' }, left: { style: 'thin' },
-      bottom: { style: 'thin' }, right: { style: 'thin' }
-    },
-  };
+    const addHyperlinkRow = (field, url) => {
+        const row = worksheet.addRow([field, '']);
+        const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
+        fieldCell.font = { bold: true };
+        valueCell.value = { text: 'Ver documento', hyperlink: url };
+        valueCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+        [fieldCell, valueCell].forEach(cell => {
+            cell.border = {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+            cell.alignment = { wrapText: true, vertical: 'top' };
+        });
+    };
 
-  // Sección: Información General
-  let rowCount = 3;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const genTitleCell = worksheet.getCell(`A${rowCount}`);
-  genTitleCell.value = 'Información General';
-  genTitleCell.style = {
-    font: { bold: true, color: { argb: 'FF210D65' } },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
-    alignment: { horizontal: 'left', vertical: 'middle' },
-    border: {
-      top: { style: 'thin' }, left: { style: 'thin' },
-      bottom: { style: 'thin' }, right: { style: 'thin' }
-    },
-  };
-  rowCount++;
-  const generalData = [
-    { field: 'Fecha', value: formData.fecha },
-    { field: 'Nombre del Cargo', value: formData.nombrecargo },
-    { field: 'Área General', value: formData.areageneral },
-    { field: 'Departamento', value: formData.departamento },
-    { field: 'Proceso', value: formData.proceso },
-    { field: 'Misión del Cargo', value: formData.misioncargo },
-    { field: 'Jefe Inmediato', value: formData.jefeinmediato },
-    { field: 'Supervisa a', value: formData.supervisaa },
-    { field: 'Número de Personas a Cargo', value: formData.numeropersonascargo },
-    { field: 'Tipo de Contrato', value: formData.tipocontrato },
-  ];
-  generalData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
-  rowCount += generalData.length;
+    const addSectionTitle = (title) => {
+        const row = worksheet.addRow();
+        worksheet.mergeCells(`A${row.number}:B${row.number}`);
+        const cell = worksheet.getCell(`A${row.number}`);
+        cell.value = title;
+        cell.style = {
+            font: { bold: true, color: { argb: 'FF210D65' } },
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
+            alignment: { horizontal: 'left', vertical: 'middle' },
+            border: {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            },
+        };
+    };
+    // --- Fin de funciones auxiliares ---
 
-  // Sección: Requisitos del Perfil
-  rowCount++;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const reqTitleCell = worksheet.getCell(`A${rowCount}`);
-  reqTitleCell.value = 'Requisitos del Perfil';
-  reqTitleCell.style = genTitleCell.style;
-  rowCount++;
-  const reqData = [
-    { field: 'Escolaridad', value: formData.escolaridad },
-    { field: 'Área de Formación', value: formData.area_formacion },
-    { field: 'Estudios Complementarios', value: formData.estudioscomplementarios },
-    { field: 'Experiencia Necesaria', value: formData.experiencia },
-    { field: 'Población Focalizada', value: formData.poblacionfocalizada },
-  ];
-  reqData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
-  rowCount += reqData.length;
+    // Definir anchos de columnas
+    worksheet.columns = [{ width: 35 }, { width: 60 }];
 
-  // Sección: Competencias y Responsabilidades
-  rowCount++;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const compTitleCell = worksheet.getCell(`A${rowCount}`);
-  compTitleCell.value = 'Competencias y Responsabilidades';
-  compTitleCell.style = genTitleCell.style;
-  rowCount++;
-  const compData = [
-    { field: 'Competencias Culturales', value: formatValueForExcel(formData.competencias_culturales) },
-    { field: 'Competencias del Cargo', value: formatValueForExcel(formData.competencias_cargo) },
-    { field: 'Responsabilidades', value: formatValueForExcel(formData.responsabilidades) },
-  ];
-  compData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
-  rowCount += compData.length;
+    // Título principal
+    worksheet.mergeCells('A1:B1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'Detalles de la Solicitud de Perfil de Cargo';
+    titleCell.style = {
+        font: { ...headerFont, size: 16 },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } },
+        border: {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' }
+        },
+    };
 
-  // Sección: Otros Datos
-  rowCount++;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const otherTitleCell = worksheet.getCell(`A${rowCount}`);
-  otherTitleCell.value = 'Otros Datos';
-  otherTitleCell.style = genTitleCell.style;
-  rowCount++;
-  const otherData = [
-    { field: 'Cursos/Certificaciones', value: formData.cursoscertificaciones },
-    { field: 'Requiere Vehículo', value: formData.requierevehiculo },
-    { field: 'Tipo de Licencia', value: formData.tipolicencia },
-    { field: 'Idiomas', value: formData.idiomas },
-    { field: 'Requiere Viajar', value: formData.requiereviajar },
-    { field: 'Áreas Relacionadas', value: formData.areasrelacionadas },
-    { field: 'Relacionamiento Externo', value: formData.relacionamientoexterno },
-  ];
-  otherData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
-  rowCount += otherData.length;
+    // Agregar un espacio en blanco después del título
+    worksheet.addRow();
+    
+    // Sección: Información General
+    addSectionTitle('Información General');
+    addRowWithStyle('Fecha', formData.fecha);
+    addRowWithStyle('Nombre del Cargo', formData.nombrecargo);
+    addRowWithStyle('Área General', formData.areageneral);
+    addRowWithStyle('Departamento', formData.departamento);
+    addRowWithStyle('Proceso', formData.proceso);
+    addRowWithStyle('Misión del Cargo', formData.misioncargo);
+    addRowWithStyle('Jefe Inmediato', formData.jefeinmediato);
+    addRowWithStyle('Supervisa a', formData.supervisaa);
+    addRowWithStyle('Número de Personas a Cargo', formData.numeropersonascargo);
+    addRowWithStyle('Tipo de Contrato', formData.tipocontrato);
 
-  // Sección: Aprobaciones
-  rowCount++;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const aprTitleCell = worksheet.getCell(`A${rowCount}`);
-  aprTitleCell.value = 'Estado y Observaciones';
-  aprTitleCell.style = genTitleCell.style;
-  rowCount++;
-  const aprData = [
-    { field: 'Estado', value: formData.estado },
-    { field: 'Observación Área', value: formData.observacion_area },
-    { field: 'Observación Director', value: formData.observacion_director },
-    { field: 'Observación Gerencia', value: formData.observacion_gerencia },
-    { field: 'Observación Seguridad', value: formData.observacion_seguridad },
-  ];
-  aprData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
-  rowCount += aprData.length;
+    // Sección: Requisitos del Perfil
+    addSectionTitle('Requisitos del Perfil');
+    addRowWithStyle('Escolaridad', formData.escolaridad);
+    addRowWithStyle('Área de Formación', formData.area_formacion);
+    addRowWithStyle('Estudios Complementarios', formData.estudioscomplementarios);
+    addRowWithStyle('Experiencia Necesaria', formData.experiencia);
+    addRowWithStyle('Población Focalizada', formData.poblacionfocalizada);
 
-  // Sección: Documentos Adjuntos
-  rowCount++;
-  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-  const docTitleCell = worksheet.getCell(`A${rowCount}`);
-  docTitleCell.value = 'Documentos Adjuntos';
-  docTitleCell.style = genTitleCell.style;
-  rowCount++;
+    // Sección: Competencias y Responsabilidades
+    addSectionTitle('Competencias y Responsabilidades');
+    addRowWithStyle('Competencias Culturales', formatValueForExcel(formData.competencias_culturales));
+    addRowWithStyle('Competencias del Cargo', formatValueForExcel(formData.competencias_cargo));
+    addRowWithStyle('Responsabilidades', formatValueForExcel(formData.responsabilidades));
+
+    // Sección: Otros Datos
+    addSectionTitle('Otros Datos');
+    addRowWithStyle('Cursos/Certificaciones', formData.cursoscertificaciones);
+    addRowWithStyle('Requiere Vehículo', formData.requierevehiculo);
+    addRowWithStyle('Tipo de Licencia', formData.tipolicencia);
+    addRowWithStyle('Idiomas', formData.idiomas);
+    addRowWithStyle('Requiere Viajar', formData.requiereviajar);
+    addRowWithStyle('Áreas Relacionadas', formData.areasrelacionadas);
+    addRowWithStyle('Relacionamiento Externo', formData.relacionamientoexterno);
+
+    // Sección: Aprobaciones
+    addSectionTitle('Estado y Observaciones');
+    addRowWithStyle('Estado', formData.estado);
+    addRowWithStyle('Observación Área', formData.observacion_area);
+    addRowWithStyle('Observación Director', formData.observacion_director);
+    addRowWithStyle('Observación Gerencia', formData.observacion_gerencia);
+    addRowWithStyle('Observación Seguridad', formData.observacion_seguridad);
+    
+    // Sección: Documentos Adjuntos
+    addSectionTitle('Documentos Adjuntos');
+    
+    // Hipervínculos
+    if (formData.documento) {
+        addHyperlinkRow('Documento', formData.documento);
+    } else {
+        addRowWithStyle('Documento', 'N/A');
+    }
+
+    if (formData.estructuraorganizacional) {
+        addHyperlinkRow('Estructura Organizacional', formData.estructuraorganizacional);
+    } else {
+        addRowWithStyle('Estructura Organizacional', 'N/A');
+    }
   
-  // Hipervínculos
-  const addHyperlinkRow = (field, url) => {
-    const row = worksheet.addRow([field]);
-    const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
-    fieldCell.font = { bold: true };
-    valueCell.value = { text: 'Ver documento', hyperlink: url };
-    valueCell.font = { color: { argb: 'FF0000FF' }, underline: true };
-    [fieldCell, valueCell].forEach(cell => {
-      cell.border = {
-        top: { style: 'thin' }, left: { style: 'thin' },
-        bottom: { style: 'thin' }, right: { style: 'thin' }
-      };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F2F5' } };
-      cell.alignment = { wrapText: true, vertical: 'top' };
-    });
-  };
-  
-  if (formData.documento) {
-    addHyperlinkRow('Documento', formData.documento);
-  } else {
-    addRowWithStyle(worksheet, 'Documento', 'N/A');
-  }
-
-  if (formData.estructuraorganizacional) {
-    addHyperlinkRow('Estructura Organizacional', formData.estructuraorganizacional);
-  } else {
-    addRowWithStyle(worksheet, 'Estructura Organizacional', 'N/A');
-  }
-  
-  // Asegurarse de que el resto del código de exportación se mantiene
-  const buffer = await workbook.xlsx.writeBuffer();
-  return {
-    filename: `Solicitud_${workflow_id}.xlsx`,
-    content: buffer,
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  };
+    const buffer = await workbook.xlsx.writeBuffer();
+    return {
+        filename: `Solicitud_${workflow_id}.xlsx`,
+        content: buffer,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
 };
-
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   return `
