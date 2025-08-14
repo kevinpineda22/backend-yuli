@@ -39,68 +39,139 @@ const formatValueForExcel = (value) => {
   return value || 'N/A';
 };
 
-const generateExcelAttachment = async (formData, workflow_id) => {
+export const generateExcelAttachment = async (formData, workflow_id) => {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Solicitud');
+  const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
+  const primaryColor = 'FF210D65'; // Azul oscuro (hex)
+  const secondaryColor = 'FF89DC00'; // Verde Merkahorro (hex)
+  const lightGray = 'FFF0F2F5'; // Gris claro (hex)
+  const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  worksheet.columns = [
-    { header: 'Campo', key: 'field', width: 35 },
-    { header: 'Valor', key: 'value', width: 60, style: { alignment: { wrapText: true } } },
-  ];
+  // Título principal
+  worksheet.mergeCells('A1:B1');
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = 'Detalles de la Solicitud de Perfil de Cargo';
+  titleCell.style = {
+    font: { ...headerFont, size: 16 },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } },
+    border: {
+      top: { style: 'thin' }, left: { style: 'thin' },
+      bottom: { style: 'thin' }, right: { style: 'thin' }
+    },
+  };
 
-  const fields = [
-    { field: 'Fecha', value: formData.fecha },
-    { field: 'Área', value: formData.area || 'N/A' },
-    { field: 'Descripción', value: formData.descripcion },
-    { field: 'Nombre del cargo', value: formData.nombrecargo },
-    { field: 'Área General', value: formData.areageneral },
-    { field: 'Departamento', value: formData.departamento },
-    { field: 'Proceso', value: formData.proceso },
-    { field: 'Población Focalizada', value: formData.poblacionfocalizada || 'N/A' },
-    { field: 'Escolaridad', value: formData.escolaridad },
-    { field: 'Área de Formación', value: formData.area_formacion || 'N/A' },
-    { field: 'Estudios Complementarios', value: formData.estudioscomplementarios || 'N/A' },
-    { field: 'Experiencia', value: formData.experiencia },
-    { field: 'Jefe Inmediato', value: formData.jefeinmediato },
-    { field: 'Supervisa a', value: formData.supervisaa || 'N/A' },
-    { field: 'Número de Personas a Cargo', value: formData.numeropersonascargo || 'N/A' },
-    { field: 'Tipo de Contrato', value: formData.tipocontrato },
-    { field: 'Misión del Cargo', value: formData.misioncargo },
-    { field: 'Competencias Culturales', value: formatValueForExcel(formData.competencias_culturales) },
-    { field: 'Competencias del Cargo', value: formatValueForExcel(formData.competencias_cargo) },
-    { field: 'Responsabilidades', value: formatValueForExcel(formData.responsabilidades) },
-    { field: 'Cursos/Certificaciones', value: formData.cursoscertificaciones || 'N/A' },
-    { field: 'Requiere Vehículo', value: formData.requierevehiculo || 'N/A' },
-    { field: 'Tipo de Licencia', value: formData.tipolicencia || 'N/A' },
-    { field: 'Idiomas', value: formData.idiomas || 'N/A' },
-    { field: 'Requiere Viajar', value: formData.requiereviajar || 'N/A' },
-    { field: 'Áreas Relacionadas', value: formData.areasrelacionadas || 'N/A' },
-    { field: 'Relacionamiento Externo', value: formData.relacionamientoexterno || 'N/A' },
-    // Manejo especial para links de documentos
-    { field: 'Documento', value: formData.documento ? { text: 'Ver Documento', hyperlink: formData.documento } : 'N/A' },
-    { field: 'Estructura Organizacional', value: formData.estructuraorganizacional ? { text: 'Ver Archivo', hyperlink: formData.estructuraorganizacional } : 'N/A' },
-  ];
+  let rowCount = 2;
 
-  fields.forEach(({ field, value }) => {
-    const row = worksheet.addRow({ field, value });
-    if (typeof value === 'object' && value.text) {
-      row.getCell(2).value = value;
-      row.getCell(2).font = { color: { argb: 'FF0000FF' }, underline: true };
-    }
-  });
+  const addSectionTitle = (title) => {
+    rowCount++;
+    worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+    const cell = worksheet.getCell(`A${rowCount}`);
+    cell.value = title;
+    cell.style = {
+      font: { bold: true, color: { argb: 'FF210D65' } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
+      alignment: { horizontal: 'left', vertical: 'middle' },
+      border: {
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' }
+      },
+    };
+    rowCount++;
+  };
 
-  worksheet.getRow(1).font = { bold: true };
-  worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF89DC00' } }; // Verde Merkahorro
-  worksheet.eachRow((row, rowNumber) => {
-    row.eachCell((cell) => {
+  const addRow = (field, value) => {
+    const row = worksheet.addRow([field, value]);
+    const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
+    fieldCell.font = { bold: true };
+    [fieldCell, valueCell].forEach(cell => {
       cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' },
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' }
       };
-      if (rowNumber % 2 === 0) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F2F5' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+      cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+    rowCount++;
+  };
+
+  // Sección: Información General
+  addSectionTitle('Información General');
+  addRow('Fecha', formData.fecha);
+  addRow('Nombre del Cargo', formData.nombrecargo);
+  addRow('Área General', formData.areageneral);
+  addRow('Departamento', formData.departamento);
+  addRow('Proceso', formData.proceso);
+  addRow('Misión del Cargo', formData.misioncargo);
+  addRow('Jefe Inmediato', formData.jefeinmediato);
+  addRow('Supervisa a', formData.supervisaa);
+  addRow('Número de Personas a Cargo', formData.numeropersonascargo);
+  addRow('Tipo de Contrato', formData.tipocontrato);
+
+  // Sección: Requisitos del Perfil
+  addSectionTitle('Requisitos del Perfil');
+  addRow('Escolaridad', formData.escolaridad);
+  addRow('Área de Formación', formData.area_formacion);
+  addRow('Estudios Complementarios', formData.estudioscomplementarios);
+  addRow('Experiencia Necesaria', formData.experiencia);
+  addRow('Población Focalizada', formData.poblacionfocalizada);
+
+  // Sección: Competencias
+  addSectionTitle('Competencias y Responsabilidades');
+  addRow('Competencias Culturales', formatValueForExcel(formData.competencias_culturales));
+  addRow('Competencias del Cargo', formatValueForExcel(formData.competencias_cargo));
+  addRow('Responsabilidades', formatValueForExcel(formData.responsabilidades));
+
+  // Sección: Otros Datos
+  addSectionTitle('Otros Datos');
+  addRow('Cursos/Certificaciones', formData.cursoscertificaciones);
+  addRow('Requiere Vehículo', formData.requierevehiculo);
+  addRow('Tipo de Licencia', formData.tipolicencia);
+  addRow('Idiomas', formData.idiomas);
+  addRow('Requiere Viajar', formData.requiereviajar);
+  addRow('Áreas Relacionadas', formData.areasrelacionadas);
+  addRow('Relacionamiento Externo', formData.relacionamientoexterno);
+
+  // Sección: Aprobaciones
+  addSectionTitle('Estado y Observaciones');
+  addRow('Estado', formData.estado);
+  addRow('Observación Área', formData.observacion_area);
+  addRow('Observación Director', formData.observacion_director);
+  addRow('Observación Gerencia', formData.observacion_gerencia);
+  addRow('Observación Seguridad', formData.observacion_seguridad);
+
+  // Sección: Documentos Adjuntos
+  addSectionTitle('Documentos Adjuntos');
+
+  // Manejar hipervínculos
+  const docRow = worksheet.addRow(['Documento', '']);
+  docRow.getCell(1).font = { bold: true };
+  const docCell = docRow.getCell(2);
+  if (formData.documento) {
+    docCell.value = { text: 'Ver Documento', hyperlink: formData.documento };
+    docCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+  } else {
+    docCell.value = 'N/A';
+  }
+
+  const estRow = worksheet.addRow(['Estructura Organizacional', '']);
+  estRow.getCell(1).font = { bold: true };
+  const estCell = estRow.getCell(2);
+  if (formData.estructuraorganizacional) {
+    estCell.value = { text: 'Ver Archivo', hyperlink: formData.estructuraorganizacional };
+    estCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+  } else {
+    estCell.value = 'N/A';
+  }
+
+  // Aplicar bordes al final
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (cell.border && !cell.border.top) { // Si no tiene borde, lo añade (para las últimas filas)
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
       }
     });
   });
@@ -111,25 +182,6 @@ const generateExcelAttachment = async (formData, workflow_id) => {
     content: buffer,
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
-};
-
-const renderList = (label, items) => {
-  if (!items || items.length === 0) {
-    return '';
-  }
-  const listItems = items.map(item => {
-    if (typeof item === 'object') {
-      return `<li>${item.competencia} (${item.nivel}) - ${item.definicion}</li>`;
-    }
-    return `<li>${item}</li>`;
-  }).join('');
-
-  return `
-        <h3 style="margin:20px 0 10px 0; font-size:18px; color:#210D65; font-family:Arial, sans-serif;">${label}</h3>
-        <ul style="margin:0; padding:0 0 0 25px; list-style-type:disc; color:#333333; font-family:Arial, sans-serif; font-size:16px;">
-            ${listItems}
-        </ul>
-    `;
 };
 
 
