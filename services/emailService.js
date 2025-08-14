@@ -40,149 +40,201 @@ const formatValueForExcel = (value) => {
 };
 
 export const generateExcelAttachment = async (formData, workflow_id) => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
-    const primaryColor = 'FF210D65'; // Azul oscuro (hex)
-    const secondaryColor = 'FF89DC00'; // Verde Merkahorro (hex)
-    const lightGray = 'FFF0F2F5'; // Gris claro (hex)
-    const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
 
-    // --- Funciones auxiliares movidas dentro del scope ---
-    const addRowWithStyle = (field, value) => {
-        const row = worksheet.addRow([field, value]);
-        const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
-        fieldCell.font = { bold: true };
-        [fieldCell, valueCell].forEach(cell => {
-            cell.border = {
-                top: { style: 'thin' }, left: { style: 'thin' },
-                bottom: { style: 'thin' }, right: { style: 'thin' }
-            };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
-            cell.alignment = { wrapText: true, vertical: 'top' };
-        });
-    };
+  // Colores y estilos
+  const primaryColor = 'FF210D65'; // Azul oscuro
+  const secondaryColor = 'FF89DC00'; // Verde (puedes ajustar)
+  const lightGray = 'FFF7F8FA';
+  const headerFont = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+  const labelFont = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
+  const valueFont = { name: 'Arial', color: { argb: 'FF000000' } };
 
-    const addHyperlinkRow = (field, url) => {
-        const row = worksheet.addRow([field, '']);
-        const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
-        fieldCell.font = { bold: true };
-        valueCell.value = { text: 'Ver documento', hyperlink: url };
-        valueCell.font = { color: { argb: 'FF0000FF' }, underline: true };
-        [fieldCell, valueCell].forEach(cell => {
-            cell.border = {
-                top: { style: 'thin' }, left: { style: 'thin' },
-                bottom: { style: 'thin' }, right: { style: 'thin' }
-            };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
-            cell.alignment = { wrapText: true, vertical: 'top' };
-        });
-    };
+  // Config columnas: A etiqueta, B separador, C valor (esto replica plantilla)
+  worksheet.columns = [
+    { width: 40 }, // A
+    { width: 3  }, // B (espacio)
+    { width: 80 }, // C (valores)
+  ];
 
-    const addSectionTitle = (title) => {
-        const row = worksheet.addRow();
-        worksheet.mergeCells(`A${row.number}:B${row.number}`);
-        const cell = worksheet.getCell(`A${row.number}`);
-        cell.value = title;
-        cell.style = {
-            font: { bold: true, color: { argb: 'FF210D65' } },
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
-            alignment: { horizontal: 'left', vertical: 'middle' },
-            border: {
-                top: { style: 'thin' }, left: { style: 'thin' },
-                bottom: { style: 'thin' }, right: { style: 'thin' }
-            },
-        };
-    };
-    // --- Fin de funciones auxiliares ---
+  const cellBorderThin = {
+    top:    { style: 'thin' },
+    left:   { style: 'thin' },
+    bottom: { style: 'thin' },
+    right:  { style: 'thin' },
+  };
 
-    // Definir anchos de columnas
-    worksheet.columns = [{ width: 35 }, { width: 60 }];
+  const writeSectionTitle = (text) => {
+    const row = worksheet.addRow([]);
+    // usamos 1..3 columnas -> merge A#:C#
+    worksheet.mergeCells(`A${row.number}:C${row.number}`);
+    const cell = worksheet.getCell(`A${row.number}`);
+    cell.value = text;
+    cell.font = { name: 'Arial', bold: true, size: 12, color: { argb: primaryColor } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } };
+    cell.alignment = { horizontal: 'left', vertical: 'middle' };
+    cell.border = cellBorderThin;
+    // espacio visual debajo
+    worksheet.addRow([]);
+  };
 
-    // Título principal
-    worksheet.mergeCells('A1:B1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.value = 'Detalles de la Solicitud de Perfil de Cargo';
-    titleCell.style = {
-        font: { ...headerFont, size: 16 },
-        alignment: { horizontal: 'center', vertical: 'middle' },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } },
-        border: {
-            top: { style: 'thin' }, left: { style: 'thin' },
-            bottom: { style: 'thin' }, right: { style: 'thin' }
-        },
-    };
+  const writeLabelValue = (label, value) => {
+    // Forzar texto "N/A" si no hay valor
+    const safeVal = (value === null || value === undefined || value === '') ? 'N/A' : value;
+    const row = worksheet.addRow([label, null, safeVal]);
+    const labelCell = row.getCell(1);
+    const valCell   = row.getCell(3);
 
-    // Agregar un espacio en blanco después del título
-    worksheet.addRow();
-    
-    // Sección: Información General
-    addSectionTitle('Información General');
-    addRowWithStyle('Fecha', formData.fecha);
-    addRowWithStyle('Nombre del Cargo', formData.nombrecargo);
-    addRowWithStyle('Área General', formData.areageneral);
-    addRowWithStyle('Departamento', formData.departamento);
-    addRowWithStyle('Proceso', formData.proceso);
-    addRowWithStyle('Misión del Cargo', formData.misioncargo);
-    addRowWithStyle('Jefe Inmediato', formData.jefeinmediato);
-    addRowWithStyle('Supervisa a', formData.supervisaa);
-    addRowWithStyle('Número de Personas a Cargo', formData.numeropersonascargo);
-    addRowWithStyle('Tipo de Contrato', formData.tipocontrato);
+    labelCell.font = labelFont;
+    valCell.font = valueFont;
 
-    // Sección: Requisitos del Perfil
-    addSectionTitle('Requisitos del Perfil');
-    addRowWithStyle('Escolaridad', formData.escolaridad);
-    addRowWithStyle('Área de Formación', formData.area_formacion);
-    addRowWithStyle('Estudios Complementarios', formData.estudioscomplementarios);
-    addRowWithStyle('Experiencia Necesaria', formData.experiencia);
-    addRowWithStyle('Población Focalizada', formData.poblacionfocalizada);
+    // estilo
+    [labelCell, valCell].forEach(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+      cell.border = cellBorderThin;
+      cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+  };
 
-    // Sección: Competencias y Responsabilidades
-    addSectionTitle('Competencias y Responsabilidades');
-    addRowWithStyle('Competencias Culturales', formatValueForExcel(formData.competencias_culturales));
-    addRowWithStyle('Competencias del Cargo', formatValueForExcel(formData.competencias_cargo));
-    addRowWithStyle('Responsabilidades', formatValueForExcel(formData.responsabilidades));
-
-    // Sección: Otros Datos
-    addSectionTitle('Otros Datos');
-    addRowWithStyle('Cursos/Certificaciones', formData.cursoscertificaciones);
-    addRowWithStyle('Requiere Vehículo', formData.requierevehiculo);
-    addRowWithStyle('Tipo de Licencia', formData.tipolicencia);
-    addRowWithStyle('Idiomas', formData.idiomas);
-    addRowWithStyle('Requiere Viajar', formData.requiereviajar);
-    addRowWithStyle('Áreas Relacionadas', formData.areasrelacionadas);
-    addRowWithStyle('Relacionamiento Externo', formData.relacionamientoexterno);
-
-    // Sección: Aprobaciones
-    addSectionTitle('Estado y Observaciones');
-    addRowWithStyle('Estado', formData.estado);
-    addRowWithStyle('Observación Área', formData.observacion_area);
-    addRowWithStyle('Observación Director', formData.observacion_director);
-    addRowWithStyle('Observación Gerencia', formData.observacion_gerencia);
-    addRowWithStyle('Observación Seguridad', formData.observacion_seguridad);
-    
-    // Sección: Documentos Adjuntos
-    addSectionTitle('Documentos Adjuntos');
-    
-    // Hipervínculos
-    if (formData.documento) {
-        addHyperlinkRow('Documento', formData.documento);
-    } else {
-        addRowWithStyle('Documento', 'N/A');
+  const writeHyperlink = (label, url) => {
+    if (!url) {
+      writeLabelValue(label, 'N/A');
+      return;
     }
+    const row = worksheet.addRow([label, null, 'Ver documento']);
+    const labelCell = row.getCell(1);
+    const valCell   = row.getCell(3);
 
-    if (formData.estructuraorganizacional) {
-        addHyperlinkRow('Estructura Organizacional', formData.estructuraorganizacional);
-    } else {
-        addRowWithStyle('Estructura Organizacional', 'N/A');
+    labelCell.font = labelFont;
+    valCell.font = { name: 'Arial', color: { argb: 'FF0563C1' }, underline: true };
+
+    // asignar hipervínculo
+    valCell.value = { text: 'Ver documento', hyperlink: String(url) };
+
+    [labelCell, valCell].forEach(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+      cell.border = cellBorderThin;
+      cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+  };
+
+  // Convierte arrays/competencias a texto con saltos de línea
+  const formatValueForCell = (value) => {
+    if (!value && value !== 0) return 'N/A';
+    if (Array.isArray(value)) {
+      // array de objetos competencia -> formatear líneas: "Competencia (Nivel) - Definición"
+      if (value.length > 0 && typeof value[0] === 'object' && value[0].competencia) {
+        return value.map(c => `${c.competencia}${c.nivel ? ` (${c.nivel})` : ''}${c.definicion ? ` - ${c.definicion}` : ''}`).join('\n');
+      }
+      // array simple
+      return value.join('\n');
     }
-  
-    const buffer = await workbook.xlsx.writeBuffer();
-    return {
-        filename: `Solicitud_${workflow_id}.xlsx`,
-        content: buffer,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    };
+    // si es string que contiene JSON -> parsear y formatear
+    if (typeof value === 'string' && (value.trim().startsWith('[') || value.trim().startsWith('{'))) {
+      try {
+        const parsed = JSON.parse(value);
+        return formatValueForCell(parsed);
+      } catch (e) {
+        // no JSON, retornar tal cual
+        return value;
+      }
+    }
+    return String(value);
+  };
+
+  // --- Título principal (simulando plantilla) ---
+  worksheet.mergeCells('A1:C1');
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = 'INFORMACIÓN GENERAL';
+  titleCell.font = { name: 'Arial', bold: true, size: 14, color: { argb: primaryColor } };
+  titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+  titleCell.border = cellBorderThin;
+  // pequeña fila en blanco a continuación
+  worksheet.addRow([]);
+
+  // --- Información General (se escribe etiqueta en A y valor en C) ---
+  writeLabelValue('Nombre del cargo', formatValueForCell(formData.nombrecargo || formData.nombreCargo));
+  writeLabelValue('Área', formatValueForCell(formData.areageneral || formData.area || formData.areaGeneral));
+  writeLabelValue('Departamento', formatValueForCell(formData.departamento));
+  writeLabelValue('Proceso al que pertenece', formatValueForCell(formData.proceso));
+  writeLabelValue('Estructura organizacional (enlace)', ''); // placeholder, añadiremos link debajo si existe
+  if (formData.estructuraorganizacional) {
+    writeHyperlink('Estructura organizacional', formData.estructuraorganizacional);
+  } else {
+    writeLabelValue('Estructura organizacional', 'N/A');
+  }
+
+  // separación visual
+  worksheet.addRow([]);
+
+  // Población focalizada: si viene como array o string con saltos, lo colocamos sobre varias filas (mimic plantilla)
+  writeSectionTitle('Población focalizada');
+  const poblacionVal = formatValueForCell(formData.poblacionfocalizada || formData.poblacionFocalizada);
+  // si es múltiples líneas, escribir cada línea en su propia fila (col C)
+  if (poblacionVal && poblacionVal !== 'N/A') {
+    poblacionVal.split('\n').forEach(line => {
+      writeLabelValue('', line); // etiqueta vacía para parezca plantilla
+    });
+  } else {
+    writeLabelValue('', 'N/A');
+  }
+  worksheet.addRow([]);
+
+  // --- Requisitos del Perfil ---
+  writeSectionTitle('REQUISITOS DEL PERFIL');
+  writeLabelValue('Escolaridad', formatValueForCell(formData.escolaridad));
+  writeLabelValue('Área de formación', formatValueForCell(formData.area_formacion || formData.areaFormacion));
+  writeLabelValue('Estudios complementarios', formatValueForCell(formData.estudioscomplementarios || formData.estudiosComplementarios));
+  writeLabelValue('Experiencia necesaria', formatValueForCell(formData.experiencia));
+  writeLabelValue('Población focalizada (detalle)', formatValueForCell(formData.poblacionfocalizada));
+
+  worksheet.addRow([]);
+
+  // --- Competencias y Responsabilidades ---
+  writeSectionTitle('COMPETENCIAS REQUERIDAS');
+  // Competencias culturales: si es array/obj
+  writeLabelValue('Competencias culturales', formatValueForCell(formData.competencias_culturales || formData.competenciasCulturales));
+  // Competencias del cargo
+  writeLabelValue('Competencias del cargo', formatValueForCell(formData.competencias_cargo || formData.competenciasCargo));
+  // Responsabilidades
+  writeLabelValue('Responsabilidades', formatValueForCell(formData.responsabilidades));
+
+  worksheet.addRow([]);
+
+  // --- Otros datos ---
+  writeSectionTitle('OTROS DATOS');
+  writeLabelValue('Cursos / Certificaciones', formatValueForCell(formData.cursoscertificaciones || formData.cursosCertificaciones));
+  writeLabelValue('¿Requiere vehículo?', formatValueForCell(formData.requierevehiculo || formData.requiereVehiculo));
+  writeLabelValue('Tipo de licencia', formatValueForCell(formData.tipolicencia || formData.tipoLicencia));
+  writeLabelValue('Idiomas', formatValueForCell(formData.idiomas));
+  writeLabelValue('¿Requiere viajar?', formatValueForCell(formData.requiereviajar || formData.requiereViajar));
+  writeLabelValue('Áreas con las cuales se relaciona (internas)', formatValueForCell(formData.areasrelacionadas || formData.areasRelacionadas));
+  writeLabelValue('Relacionamiento externo', formatValueForCell(formData.relacionamientoexterno || formData.relacionamientoExterno));
+
+  worksheet.addRow([]);
+
+  // --- Documentos adjuntos (hipervínculos) ---
+  writeSectionTitle('DOCUMENTOS ADJUNTOS');
+  writeHyperlink('Documento', formData.documento);
+  writeHyperlink('Estructura organizacional', formData.estructuraorganizacional);
+
+  // Ajustes finales de apariencia: alinear todas las celdas con wrap text por si hay muchos saltos de línea
+  worksheet.eachRow((row) => {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      if (!cell.alignment) cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+  });
+
+  // Escribir buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  return {
+    filename: `Solicitud_${workflow_id}.xlsx`,
+    content: buffer,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
 };
+
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   return `
