@@ -44,8 +44,10 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   const worksheet = workbook.addWorksheet('Solicitud de Perfil de Cargo');
   const primaryColor = 'FF210D65'; // Azul oscuro (hex)
   const secondaryColor = 'FF89DC00'; // Verde Merkahorro (hex)
-  const lightGray = 'FFF0F2F5'; // Gris claro (hex)
   const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+  // Definir anchos de columnas
+  worksheet.columns = [{ width: 35 }, { width: 60 }];
 
   // Título principal
   worksheet.mergeCells('A1:B1');
@@ -61,121 +63,142 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     },
   };
 
-  let rowCount = 2;
-
-  const addSectionTitle = (title) => {
-    rowCount++;
-    worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
-    const cell = worksheet.getCell(`A${rowCount}`);
-    cell.value = title;
-    cell.style = {
-      font: { bold: true, color: { argb: 'FF210D65' } },
-      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
-      alignment: { horizontal: 'left', vertical: 'middle' },
-      border: {
-        top: { style: 'thin' }, left: { style: 'thin' },
-        bottom: { style: 'thin' }, right: { style: 'thin' }
-      },
-    };
-    rowCount++;
+  // Sección: Información General
+  let rowCount = 3;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const genTitleCell = worksheet.getCell(`A${rowCount}`);
+  genTitleCell.value = 'Información General';
+  genTitleCell.style = {
+    font: { bold: true, color: { argb: 'FF210D65' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: secondaryColor } },
+    alignment: { horizontal: 'left', vertical: 'middle' },
+    border: {
+      top: { style: 'thin' }, left: { style: 'thin' },
+      bottom: { style: 'thin' }, right: { style: 'thin' }
+    },
   };
+  rowCount++;
+  const generalData = [
+    { field: 'Fecha', value: formData.fecha },
+    { field: 'Nombre del Cargo', value: formData.nombrecargo },
+    { field: 'Área General', value: formData.areageneral },
+    { field: 'Departamento', value: formData.departamento },
+    { field: 'Proceso', value: formData.proceso },
+    { field: 'Misión del Cargo', value: formData.misioncargo },
+    { field: 'Jefe Inmediato', value: formData.jefeinmediato },
+    { field: 'Supervisa a', value: formData.supervisaa },
+    { field: 'Número de Personas a Cargo', value: formData.numeropersonascargo },
+    { field: 'Tipo de Contrato', value: formData.tipocontrato },
+  ];
+  generalData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
+  rowCount += generalData.length;
 
-  const addRow = (field, value) => {
-    const row = worksheet.addRow([field, value]);
+  // Sección: Requisitos del Perfil
+  rowCount++;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const reqTitleCell = worksheet.getCell(`A${rowCount}`);
+  reqTitleCell.value = 'Requisitos del Perfil';
+  reqTitleCell.style = genTitleCell.style;
+  rowCount++;
+  const reqData = [
+    { field: 'Escolaridad', value: formData.escolaridad },
+    { field: 'Área de Formación', value: formData.area_formacion },
+    { field: 'Estudios Complementarios', value: formData.estudioscomplementarios },
+    { field: 'Experiencia Necesaria', value: formData.experiencia },
+    { field: 'Población Focalizada', value: formData.poblacionfocalizada },
+  ];
+  reqData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
+  rowCount += reqData.length;
+
+  // Sección: Competencias y Responsabilidades
+  rowCount++;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const compTitleCell = worksheet.getCell(`A${rowCount}`);
+  compTitleCell.value = 'Competencias y Responsabilidades';
+  compTitleCell.style = genTitleCell.style;
+  rowCount++;
+  const compData = [
+    { field: 'Competencias Culturales', value: formatValueForExcel(formData.competencias_culturales) },
+    { field: 'Competencias del Cargo', value: formatValueForExcel(formData.competencias_cargo) },
+    { field: 'Responsabilidades', value: formatValueForExcel(formData.responsabilidades) },
+  ];
+  compData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
+  rowCount += compData.length;
+
+  // Sección: Otros Datos
+  rowCount++;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const otherTitleCell = worksheet.getCell(`A${rowCount}`);
+  otherTitleCell.value = 'Otros Datos';
+  otherTitleCell.style = genTitleCell.style;
+  rowCount++;
+  const otherData = [
+    { field: 'Cursos/Certificaciones', value: formData.cursoscertificaciones },
+    { field: 'Requiere Vehículo', value: formData.requierevehiculo },
+    { field: 'Tipo de Licencia', value: formData.tipolicencia },
+    { field: 'Idiomas', value: formData.idiomas },
+    { field: 'Requiere Viajar', value: formData.requiereviajar },
+    { field: 'Áreas Relacionadas', value: formData.areasrelacionadas },
+    { field: 'Relacionamiento Externo', value: formData.relacionamientoexterno },
+  ];
+  otherData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
+  rowCount += otherData.length;
+
+  // Sección: Aprobaciones
+  rowCount++;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const aprTitleCell = worksheet.getCell(`A${rowCount}`);
+  aprTitleCell.value = 'Estado y Observaciones';
+  aprTitleCell.style = genTitleCell.style;
+  rowCount++;
+  const aprData = [
+    { field: 'Estado', value: formData.estado },
+    { field: 'Observación Área', value: formData.observacion_area },
+    { field: 'Observación Director', value: formData.observacion_director },
+    { field: 'Observación Gerencia', value: formData.observacion_gerencia },
+    { field: 'Observación Seguridad', value: formData.observacion_seguridad },
+  ];
+  aprData.forEach(item => addRowWithStyle(worksheet, item.field, item.value));
+  rowCount += aprData.length;
+
+  // Sección: Documentos Adjuntos
+  rowCount++;
+  worksheet.mergeCells(`A${rowCount}:B${rowCount}`);
+  const docTitleCell = worksheet.getCell(`A${rowCount}`);
+  docTitleCell.value = 'Documentos Adjuntos';
+  docTitleCell.style = genTitleCell.style;
+  rowCount++;
+  
+  // Hipervínculos
+  const addHyperlinkRow = (field, url) => {
+    const row = worksheet.addRow([field]);
     const [fieldCell, valueCell] = [row.getCell(1), row.getCell(2)];
     fieldCell.font = { bold: true };
+    valueCell.value = { text: 'Ver documento', hyperlink: url };
+    valueCell.font = { color: { argb: 'FF0000FF' }, underline: true };
     [fieldCell, valueCell].forEach(cell => {
       cell.border = {
         top: { style: 'thin' }, left: { style: 'thin' },
         bottom: { style: 'thin' }, right: { style: 'thin' }
       };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightGray } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F2F5' } };
       cell.alignment = { wrapText: true, vertical: 'top' };
     });
-    rowCount++;
   };
-
-  // Sección: Información General
-  addSectionTitle('Información General');
-  addRow('Fecha', formData.fecha);
-  addRow('Nombre del Cargo', formData.nombrecargo);
-  addRow('Área General', formData.areageneral);
-  addRow('Departamento', formData.departamento);
-  addRow('Proceso', formData.proceso);
-  addRow('Misión del Cargo', formData.misioncargo);
-  addRow('Jefe Inmediato', formData.jefeinmediato);
-  addRow('Supervisa a', formData.supervisaa);
-  addRow('Número de Personas a Cargo', formData.numeropersonascargo);
-  addRow('Tipo de Contrato', formData.tipocontrato);
-
-  // Sección: Requisitos del Perfil
-  addSectionTitle('Requisitos del Perfil');
-  addRow('Escolaridad', formData.escolaridad);
-  addRow('Área de Formación', formData.area_formacion);
-  addRow('Estudios Complementarios', formData.estudioscomplementarios);
-  addRow('Experiencia Necesaria', formData.experiencia);
-  addRow('Población Focalizada', formData.poblacionfocalizada);
-
-  // Sección: Competencias
-  addSectionTitle('Competencias y Responsabilidades');
-  addRow('Competencias Culturales', formatValueForExcel(formData.competencias_culturales));
-  addRow('Competencias del Cargo', formatValueForExcel(formData.competencias_cargo));
-  addRow('Responsabilidades', formatValueForExcel(formData.responsabilidades));
-
-  // Sección: Otros Datos
-  addSectionTitle('Otros Datos');
-  addRow('Cursos/Certificaciones', formData.cursoscertificaciones);
-  addRow('Requiere Vehículo', formData.requierevehiculo);
-  addRow('Tipo de Licencia', formData.tipolicencia);
-  addRow('Idiomas', formData.idiomas);
-  addRow('Requiere Viajar', formData.requiereviajar);
-  addRow('Áreas Relacionadas', formData.areasrelacionadas);
-  addRow('Relacionamiento Externo', formData.relacionamientoexterno);
-
-  // Sección: Aprobaciones
-  addSectionTitle('Estado y Observaciones');
-  addRow('Estado', formData.estado);
-  addRow('Observación Área', formData.observacion_area);
-  addRow('Observación Director', formData.observacion_director);
-  addRow('Observación Gerencia', formData.observacion_gerencia);
-  addRow('Observación Seguridad', formData.observacion_seguridad);
-
-  // Sección: Documentos Adjuntos
-  addSectionTitle('Documentos Adjuntos');
-
-  // Manejar hipervínculos
-  const docRow = worksheet.addRow(['Documento', '']);
-  docRow.getCell(1).font = { bold: true };
-  const docCell = docRow.getCell(2);
+  
   if (formData.documento) {
-    docCell.value = { text: 'Ver Documento', hyperlink: formData.documento };
-    docCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+    addHyperlinkRow('Documento', formData.documento);
   } else {
-    docCell.value = 'N/A';
+    addRowWithStyle(worksheet, 'Documento', 'N/A');
   }
 
-  const estRow = worksheet.addRow(['Estructura Organizacional', '']);
-  estRow.getCell(1).font = { bold: true };
-  const estCell = estRow.getCell(2);
   if (formData.estructuraorganizacional) {
-    estCell.value = { text: 'Ver Archivo', hyperlink: formData.estructuraorganizacional };
-    estCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+    addHyperlinkRow('Estructura Organizacional', formData.estructuraorganizacional);
   } else {
-    estCell.value = 'N/A';
+    addRowWithStyle(worksheet, 'Estructura Organizacional', 'N/A');
   }
-
-  // Aplicar bordes al final
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      if (cell.border && !cell.border.top) { // Si no tiene borde, lo añade (para las últimas filas)
-        cell.border = {
-          top: { style: 'thin' }, left: { style: 'thin' },
-          bottom: { style: 'thin' }, right: { style: 'thin' }
-        };
-      }
-    });
-  });
-
+  
+  // Asegurarse de que el resto del código de exportación se mantiene
   const buffer = await workbook.xlsx.writeBuffer();
   return {
     filename: `Solicitud_${workflow_id}.xlsx`,
