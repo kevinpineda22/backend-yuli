@@ -1,5 +1,5 @@
 import { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia, generarHtmlCorreoSeguridad } from '../services/emailService.js';
-import supabase from '../config/supabaseCliente.js';
+import supabase from '../supabaseCliente.js';
 
 const fieldMapping = {
   isConstruahorro: 'isConstruahorro',

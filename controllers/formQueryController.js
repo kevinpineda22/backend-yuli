@@ -1,4 +1,4 @@
-import supabase from '../config/supabaseCliente.js';
+import supabase from '../supabaseCliente.js';
 
 export const obtenerHistorial = async (req, res) => {
   try {

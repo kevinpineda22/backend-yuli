@@ -1,6 +1,6 @@
 import multer from 'multer';
 import { sendEmail, generarHtmlCorreoArea, generarHtmlCorreoDirector } from '../services/emailService.js';
-import supabase from '../config/supabaseCliente.js';
+import supabase from '../supabaseCliente.js';
 
 export const upload = multer({ storage: multer.memoryStorage() });
 
