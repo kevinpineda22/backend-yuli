@@ -308,7 +308,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   worksheet.addRow([]).height = 6;
 
   // ---------------- RESPONSABILIDADES ----------------
-  addSectionTitle('RESPONSABILIDADES');
+
   const rawResp = formData.responsabilidades || formData.responsabilidadesList || formData.responsabilidadesArray || [];
   const parsedResp = parseToArray(rawResp);
   const normResp = parsedResp.map(r => {
@@ -353,23 +353,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   }
 
   worksheet.addRow([]).height = 6;
-
-  // ---------------- OTROS DATOS ----------------
-  addSectionTitle('OTROS DATOS');
-  addField('Cursos/Certificaciones', formData.cursoscertificaciones || formData.cursosCertificaciones);
-  addField('Requiere Vehículo', formData.requierevehiculo || formData.requiereVehiculo);
-  addField('Tipo de Licencia', formData.tipolicencia || formData.tipoLicencia);
-  addField('Idiomas', formData.idiomas);
-  addField('Requiere Viajar', formData.requiereviajar || formData.requiereViajar);
-  addField('Áreas Relacionadas', formData.areasrelacionadas || formData.areasRelacionadas);
-  addField('Relacionamiento Externo', formData.relacionamientoexterno || formData.relacionamientoExterno);
-
-  worksheet.addRow([]).height = 6;
-
-  // ---------------- DOCUMENTOS ADJUNTOS ----------------
-  addSectionTitle('DOCUMENTOS ADJUNTOS');
-  addHyperlink('Documento', formData.documento);
-  addHyperlink('Estructura Organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
   // asegurar wrapText/alineación global
   worksheet.eachRow(row => {
