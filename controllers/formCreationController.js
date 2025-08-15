@@ -36,27 +36,28 @@ const fieldMapping = {
     isConstruahorro: 'isConstruahorro',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
-    responsabilidades: 'responsabilidades'
+    responsabilidades: 'responsabilidades',
+    planEntrenamiento: 'plan_entrenamiento',
+    planCapacitacionContinua: 'plan_capacitacion_continua',
+    planCarrera: 'plan_carrera',
+    competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso'
 };
 
 // Función auxiliar para parsear los campos JSON del body a objetos de JS
 const parseJSONFields = (data) => {
     const newData = { ...data };
+    const jsonFields = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
     try {
-        if (newData.competenciasCulturales && typeof newData.competenciasCulturales === 'string') {
-            newData.competenciasCulturales = JSON.parse(newData.competenciasCulturales);
-        }
-        if (newData.competenciasCargo && typeof newData.competenciasCargo === 'string') {
-            newData.competenciasCargo = JSON.parse(newData.competenciasCargo);
-        }
-        if (newData.responsabilidades && typeof newData.responsabilidades === 'string') {
-            newData.responsabilidades = JSON.parse(newData.responsabilidades);
-        }
+        jsonFields.forEach(field => {
+            if (newData[field] && typeof newData[field] === 'string') {
+                newData[field] = JSON.parse(newData[field]);
+            }
+        });
     } catch (e) {
         console.error("Error al parsear JSON en el controlador:", e);
-        newData.competenciasCulturales = [];
-        newData.competenciasCargo = [];
-        newData.responsabilidades = [];
+        jsonFields.forEach(field => {
+            newData[field] = [];
+        });
     }
     return newData;
 };
@@ -71,6 +72,10 @@ const createEmailData = (body, data) => {
         competencias_culturales: parsedData.competenciasCulturales,
         competencias_cargo: parsedData.competenciasCargo,
         responsabilidades: parsedData.responsabilidades,
+        plan_entrenamiento: parsedData.planEntrenamiento,
+        plan_capacitacion_continua: parsedData.planCapacitacionContinua,
+        plan_carrera: parsedData.planCarrera,
+        competencias_desarrollo_ingreso: parsedData.competenciasDesarrolloIngreso
     };
 };
 
@@ -82,7 +87,8 @@ export const crearFormulario = async (req, res) => {
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
-            competenciasCulturales, competenciasCargo, responsabilidades
+            competenciasCulturales, competenciasCargo, responsabilidades,
+            planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
 
         const { estructuraOrganizacional } = req.files || {};
@@ -93,6 +99,7 @@ export const crearFormulario = async (req, res) => {
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
+            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -101,21 +108,24 @@ export const crearFormulario = async (req, res) => {
             }
         }
 
+        // Validar que los campos JSON sean arrays válidos
         try {
-            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
-                !Array.isArray(JSON.parse(competenciasCargo)) ||
-                !Array.isArray(JSON.parse(responsabilidades))) {
-                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
-            }
+            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
+            jsonFields.forEach((field, index) => {
+                if (field && !Array.isArray(JSON.parse(field))) {
+                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
+                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
+                }
+            });
         } catch (e) {
-            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
             return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
         }
 
-        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+        if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
@@ -150,26 +160,30 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.departamento]: departamento,
             [fieldMapping.proceso]: proceso,
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada || 'No aplica',
             [fieldMapping.escolaridad]: escolaridad,
             [fieldMapping.area_formacion]: area_formacion,
-            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
-            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.supervisaA]: supervisaA || 'No aplica',
             [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
             [fieldMapping.tipoContrato]: tipoContrato,
             [fieldMapping.misionCargo]: misionCargo,
-            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
-            [fieldMapping.requiereVehiculo]: requiereVehiculo,
-            [fieldMapping.tipoLicencia]: tipoLicencia,
-            [fieldMapping.idiomas]: idiomas,
-            [fieldMapping.requiereViajar]: requiereViajar,
-            [fieldMapping.areasRelacionadas]: areasRelacionadas,
-            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones || 'No aplica',
+            [fieldMapping.requiereVehiculo]: requiereVehiculo || 'No aplica',
+            [fieldMapping.tipoLicencia]: tipoLicencia || 'No aplica',
+            [fieldMapping.idiomas]: idiomas || 'No aplica',
+            [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
+            [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
+            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planCarrera]: planCarrera || 'No aplica',
+            [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
@@ -221,15 +235,18 @@ export const reenviarFormulario = async (req, res) => {
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
-            competenciasCulturales, competenciasCargo, responsabilidades
+            competenciasCulturales, competenciasCargo, responsabilidades,
+            planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
 
+        // Validar campos obligatorios
         const requiredFields = {
             fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
+            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -238,24 +255,28 @@ export const reenviarFormulario = async (req, res) => {
             }
         }
 
+        // Validar que los campos JSON sean arrays válidos
         try {
-            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
-                !Array.isArray(JSON.parse(competenciasCargo)) ||
-                !Array.isArray(JSON.parse(responsabilidades))) {
-                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
-            }
+            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
+            jsonFields.forEach((field, index) => {
+                if (field && !Array.isArray(JSON.parse(field))) {
+                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
+                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
+                }
+            });
         } catch (e) {
-            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
             return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
         }
 
-        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+        if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
+        // Subir estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -274,6 +295,7 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
+        // Mapear datos
         const updates = {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director,
@@ -285,26 +307,30 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.departamento]: departamento,
             [fieldMapping.proceso]: proceso,
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada || 'No aplica',
             [fieldMapping.escolaridad]: escolaridad,
             [fieldMapping.area_formacion]: area_formacion,
-            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
-            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.supervisaA]: supervisaA || 'No aplica',
             [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
             [fieldMapping.tipoContrato]: tipoContrato,
             [fieldMapping.misionCargo]: misionCargo,
-            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
-            [fieldMapping.requiereVehiculo]: requiereVehiculo,
-            [fieldMapping.tipoLicencia]: tipoLicencia,
-            [fieldMapping.idiomas]: idiomas,
-            [fieldMapping.requiereViajar]: requiereViajar,
-            [fieldMapping.areasRelacionadas]: areasRelacionadas,
-            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones || 'No aplica',
+            [fieldMapping.requiereVehiculo]: requiereVehiculo || 'No aplica',
+            [fieldMapping.tipoLicencia]: tipoLicencia || 'No aplica',
+            [fieldMapping.idiomas]: idiomas || 'No aplica',
+            [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
+            [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
+            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planCarrera]: planCarrera || 'No aplica',
+            [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
@@ -312,8 +338,6 @@ export const reenviarFormulario = async (req, res) => {
             observacion_seguridad: null,
             [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
         };
-
-        if (documentoUrl) updates[fieldMapping.documento] = documentoUrl;
 
         const { data: updated, error: updateError } = await supabase
             .from('yuli')
@@ -357,15 +381,18 @@ export const actualizarFormulario = async (req, res) => {
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
-            competenciasCulturales, competenciasCargo, responsabilidades
+            competenciasCulturales, competenciasCargo, responsabilidades,
+            planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
 
+        // Validar campos obligatorios
         const requiredFields = {
             fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
+            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -374,24 +401,28 @@ export const actualizarFormulario = async (req, res) => {
             }
         }
 
+        // Validar que los campos JSON sean arrays válidos
         try {
-            if (!Array.isArray(JSON.parse(competenciasCulturales)) ||
-                !Array.isArray(JSON.parse(competenciasCargo)) ||
-                !Array.isArray(JSON.parse(responsabilidades))) {
-                return res.status(400).json({ error: 'Los campos competenciasCulturales, competenciasCargo y responsabilidades deben ser arrays' });
-            }
+            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
+            jsonFields.forEach((field, index) => {
+                if (field && !Array.isArray(JSON.parse(field))) {
+                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
+                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
+                }
+            });
         } catch (e) {
-            return res.status(400).json({ error: 'Formato inválido para competenciasCulturales, competenciasCargo o responsabilidades' });
+            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
             return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
         }
 
-        if (requiereVehiculo === 'Si' && !tipoLicencia) {
+        if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
+        // Subir estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -410,11 +441,11 @@ export const actualizarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
+        // Mapear datos
         const updateFields = {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director,
             [fieldMapping.gerencia]: gerencia,
-            [fieldMapping.descripcion]: descripcion,
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
             [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
             [fieldMapping.nombreCargo]: nombreCargo,
@@ -422,30 +453,32 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.departamento]: departamento,
             [fieldMapping.proceso]: proceso,
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            [fieldMapping.poblacionFocalizada]: poblacionFocalizada,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada || 'No aplica',
             [fieldMapping.escolaridad]: escolaridad,
             [fieldMapping.area_formacion]: area_formacion,
-            [fieldMapping.estudiosComplementarios]: estudiosComplementarios,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
-            [fieldMapping.supervisaA]: supervisaA,
+            [fieldMapping.supervisaA]: supervisaA || 'No aplica',
             [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
             [fieldMapping.tipoContrato]: tipoContrato,
             [fieldMapping.misionCargo]: misionCargo,
-            [fieldMapping.cursosCertificaciones]: cursosCertificaciones,
-            [fieldMapping.requiereVehiculo]: requiereVehiculo,
-            [fieldMapping.tipoLicencia]: tipoLicencia,
-            [fieldMapping.idiomas]: idiomas,
-            [fieldMapping.requiereViajar]: requiereViajar,
-            [fieldMapping.areasRelacionadas]: areasRelacionadas,
-            [fieldMapping.relacionamientoExterno]: relacionamientoExterno,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones || 'No aplica',
+            [fieldMapping.requiereVehiculo]: requiereVehiculo || 'No aplica',
+            [fieldMapping.tipoLicencia]: tipoLicencia || 'No aplica',
+            [fieldMapping.idiomas]: idiomas || 'No aplica',
+            [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
+            [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
+            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planCarrera]: planCarrera || 'No aplica',
+            [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             [fieldMapping.isConstruahorro]: isConstruahorro === 'true'
         };
-
-        if (documentoUrl) updateFields[fieldMapping.documento] = documentoUrl;
 
         const { data, error } = await supabase
             .from('yuli')

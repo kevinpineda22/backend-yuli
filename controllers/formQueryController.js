@@ -1,7 +1,6 @@
 import supabase from '../supabaseCliente.js';
 
 // Mapeo de nombres de campos del frontend a columnas de la base de datos
-// (Es importante que este mapeo exista para poder hacer la conversión inversa)
 const fieldMapping = {
     nombreCargo: 'nombrecargo',
     areaGeneral: 'areageneral',
@@ -34,6 +33,10 @@ const fieldMapping = {
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
+    planEntrenamiento: 'plan_entrenamiento',
+    planCapacitacionContinua: 'plan_capacitacion_continua',
+    planCarrera: 'plan_carrera',
+    competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso'
 };
 
 // Mapeo inverso para traducir de los nombres de la base de datos a los del frontend
@@ -48,8 +51,8 @@ const processData = (data) => {
         for (const [dbKey, value] of Object.entries(item)) {
             const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
             
-            // Convertir los strings JSON a objetos de JavaScript
-            if (dbKey === 'competencias_culturales' || dbKey === 'competencias_cargo' || dbKey === 'responsabilidades') {
+            // Convertir los strings JSON a objetos de JavaScript para campos JSONb
+            if (['competencias_culturales', 'competencias_cargo', 'responsabilidades', 'plan_entrenamiento', 'plan_capacitacion_continua'].includes(dbKey)) {
                 try {
                     // Si el valor existe, se parsea. Si no, se devuelve un array vacío.
                     newItem[frontEndKey] = value ? JSON.parse(value) : [];
