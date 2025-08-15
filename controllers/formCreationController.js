@@ -33,8 +33,6 @@ const fieldMapping = {
     gerencia: 'gerencia',
     seguridad: 'seguridad',
     area: 'area',
-    descripcion: 'descripcion',
-    documento: 'documento',
     isConstruahorro: 'isConstruahorro',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
@@ -79,7 +77,7 @@ const createEmailData = (body, data) => {
 export const crearFormulario = async (req, res) => {
     try {
         const {
-            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            fecha, director, gerencia, area, isConstruahorro, seguridad, nombreCargo,
             areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
@@ -87,11 +85,11 @@ export const crearFormulario = async (req, res) => {
             competenciasCulturales, competenciasCargo, responsabilidades
         } = req.body;
 
-        const { documento, estructuraOrganizacional } = req.files || {};
+        const { estructuraOrganizacional } = req.files || {};
 
         // Validar campos obligatorios
         const requiredFields = {
-            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -121,23 +119,6 @@ export const crearFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
-        // Subir documento
-        let documentoUrl = null;
-        if (documento && documento[0]) {
-            const fileName = `${Date.now()}_${documento[0].originalname}`;
-            const { error: uploadError } = await supabase
-                .storage.from('pdfs-yuli')
-                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
-
-            if (uploadError) {
-                console.error("Error al subir archivo documento:", uploadError);
-                return res.status(500).json({ error: 'Error al subir archivo documento' });
-            }
-
-            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
-            documentoUrl = publicUrlData.publicUrl;
-        }
-
         // Subir estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
@@ -160,12 +141,10 @@ export const crearFormulario = async (req, res) => {
         // Mapear datos
         const formData = {
             [fieldMapping.fecha]: fecha,
-            [fieldMapping.documento]: documentoUrl,
             [fieldMapping.director]: director,
             [fieldMapping.gerencia]: gerencia,
             [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
-            [fieldMapping.descripcion]: descripcion,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -237,17 +216,17 @@ export const reenviarFormulario = async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            fecha, director, gerencia, area, isConstruahorro, seguridad, nombreCargo,
             areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
             competenciasCulturales, competenciasCargo, responsabilidades
         } = req.body;
-        const { documento, estructuraOrganizacional } = req.files || {};
+        const { estructuraOrganizacional } = req.files || {};
 
         const requiredFields = {
-            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -277,22 +256,6 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
-        let documentoUrl = null;
-        if (documento && documento[0]) {
-            const fileName = `${Date.now()}_${documento[0].originalname}`;
-            const { error: uploadError } = await supabase
-                .storage.from('pdfs-yuli')
-                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
-
-            if (uploadError) {
-                console.error("Error al subir archivo documento:", uploadError);
-                return res.status(500).json({ error: 'Error al subir archivo documento' });
-            }
-
-            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
-            documentoUrl = publicUrlData.publicUrl;
-        }
-
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -317,7 +280,6 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.gerencia]: gerencia,
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
             [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
-            [fieldMapping.descripcion]: descripcion,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -390,17 +352,17 @@ export const actualizarFormulario = async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            fecha, director, gerencia, descripcion, area, isConstruahorro, seguridad, nombreCargo,
+            fecha, director, gerencia, area, isConstruahorro, seguridad, nombreCargo,
             areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
             estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
             competenciasCulturales, competenciasCargo, responsabilidades
         } = req.body;
-        const { documento, estructuraOrganizacional } = req.files || {};
+        const { estructuraOrganizacional } = req.files || {};
 
         const requiredFields = {
-            fecha, director, gerencia, descripcion, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -428,22 +390,6 @@ export const actualizarFormulario = async (req, res) => {
 
         if (requiereVehiculo === 'Si' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
-        }
-
-        let documentoUrl = null;
-        if (documento && documento[0]) {
-            const fileName = `${Date.now()}_${documento[0].originalname}`;
-            const { error: uploadError } = await supabase
-                .storage.from('pdfs-yuli')
-                .upload(fileName, documento[0].buffer, { contentType: documento[0].mimetype });
-
-            if (uploadError) {
-                console.error("Error al subir archivo documento:", uploadError);
-                return res.status(500).json({ error: 'Error al subir archivo documento' });
-            }
-
-            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
-            documentoUrl = publicUrlData.publicUrl;
         }
 
         let estructuraOrganizacionalUrl = null;

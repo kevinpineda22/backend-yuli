@@ -174,7 +174,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Área', formData.areageneral || formData.area || formData.areaGeneral);
   addField('Departamento', formData.departamento);
   addField('Proceso al que pertenece', formData.proceso);
-  addHyperlink('Documento', formData.documento);
   addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
   // POBLACIÓN FOCALIZADA: mostrar en la misma fila solo las opciones seleccionadas o 'Ninguna'
@@ -395,7 +394,6 @@ const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
                       <p style="margin:0 0 10px 0;"><strong>Nombre del cargo:</strong> ${formData.nombrecargo || 'No definido'}</p>
                       <p style="margin:0 0 10px 0;"><strong>Área:</strong> ${formData.areageneral || 'No definido'}</p>
                       <p style="margin:0 0 10px 0;"><strong>Descripción:</strong> ${formData.descripcion || 'No definido'}</p>
-                      <p style="margin:0 0 10px 0;"><strong>Documento:</strong> ${formData.documento ? `<a href="${formData.documento}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Documento</a>` : 'No adjuntado'}</p>
                       <p style="margin:0 0 10px 0;"><strong>Estructura organizacional:</strong> ${formData.estructuraorganizacional ? `<a href="${formData.estructuraorganizacional}" target="_blank" style="color:#210D65; text-decoration:none;">Ver Archivo</a>` : 'No adjuntado'}</p>
                       <p style="margin:0 0 20px 0;">Por favor, revisa los detalles completos de la solicitud en el archivo Excel adjunto y toma una decisión:</p>
                       <div style="text-align:center;">

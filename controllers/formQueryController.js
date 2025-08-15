@@ -30,8 +30,6 @@ const fieldMapping = {
     gerencia: 'gerencia',
     seguridad: 'seguridad',
     area: 'area',
-    descripcion: 'descripcion',
-    documento: 'documento',
     isConstruahorro: 'isConstruahorro',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
