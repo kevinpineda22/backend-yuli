@@ -10,7 +10,7 @@ const fieldMapping = {
     estructuraOrganizacional: 'estructuraorganizacional',
     poblacionFocalizada: 'poblacionfocalizada',
     escolaridad: 'escolaridad',
-    areaFormacion: 'area_formacion',
+    area_formacion: 'area_formacion',
     estudiosComplementarios: 'estudioscomplementarios',
     experiencia: 'experiencia',
     jefeInmediato: 'jefeinmediato',
