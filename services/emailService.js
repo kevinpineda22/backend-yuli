@@ -231,7 +231,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   titleCell.border = THIN_BORDER;
   worksheet.getRow(1).height = 14;
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // ---------------- INFORMACIÓN GENERAL ----------------
   addSectionTitle('INFORMACIÓN GENERAL');
@@ -258,7 +258,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Personas a cargo', formData.numeropersonascargo || formData.numeroPersonasCargo);
   addField('Tipo de contrato', formData.tipocontrato || formData.tipoContrato);
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // ---------------- DESCRIPCIÓN DEL CARGO ----------------
   addSectionTitle('DESCRIPCIÓN DEL CARGO');
@@ -272,7 +272,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Áreas relacionadas', formData.areasRelacionadas || formData.areasrelacionadas || 'N/A');
   addField('Relacionamiento externo', formData.relacionamientoexterno || formData.relacionamientoExterno || 'N/A');
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // ---------------- COMPETENCIAS REQUERIDAS ----------------
   const compTitleRow = worksheet.addRow([]);
@@ -347,7 +347,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       r.height = COMPACT_ROW_HEIGHT;
     });
 
-    worksheet.addRow([]).height = 3;
+    worksheet.addRow([]).height = 6;
   };
 
   writeCompetencyBlockHeader('COMPETENCIAS CULTURALES');
@@ -355,7 +355,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   writeCompetencyBlockHeader('COMPETENCIAS CARGO');
   writeCompetencyRows(formData.competencias_cargo || formData.competenciasCargo || formData.competencias || []);
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // ---------------- RESPONSABILIDADES ----------------
   const rawResp = formData.responsabilidades || formData.responsabilidadesList || formData.responsabilidadesArray || [];
@@ -403,7 +403,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     });
   }
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // ---------------- COMPLEMENTARIO ----------------
   const compHeaderRow = worksheet.addRow([]);
@@ -436,7 +436,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   if (compIngresoItems.length > 0) writeSingleBox(rn_comp, compIngresoItems.join('\n'));
   else writeSingleBox(rn_comp, 'N/A');
 
-  worksheet.addRow([]).height = 3;
+  worksheet.addRow([]).height = 6;
 
   // Asegurar wrapText/alineación global
   worksheet.eachRow(row => {
