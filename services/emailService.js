@@ -167,6 +167,82 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
+  // label writer (A:C merged) - matches addField left cell style
+  const writeLabelRow = (labelText) => {
+    const r = worksheet.addRow([]);
+    const rn = r.number;
+    worksheet.mergeCells(`A${rn}:D${rn}`);
+    const left = worksheet.getCell(`A${rn}`);
+    left.value = labelText;
+    left.font = { name: 'Arial', bold: true };
+    left.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    left.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    for (let cc = 1; cc <= 4; cc++) {
+      const cell = worksheet.getCell(rn, cc);
+      cell.border = THIN_BORDER;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    }
+    return rn;
+  };
+
+  // write items horizontally (E..H) WITHOUT numeración, auto-ajustando altura y limitando ancho
+  const writeItemsHorizontal = (startRow, items) => {
+    const maxCols = 4; // E,F,G,H
+    let idx = 0;
+    let currentRow = startRow;
+    while (idx < items.length) {
+      let maxLinesThisRow = 1;
+      for (let cOff = 0; cOff < maxCols && idx < items.length; cOff++, idx++) {
+        const colIndex = 5 + cOff; // E=5
+        const text = String(items[idx]);
+        const cell = worksheet.getCell(currentRow, colIndex);
+        cell.value = `${idx + 1}. ${text}`;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+        cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+        cell.border = THIN_BORDER;
+        // estimate lines for height calculation
+        const lines = estimateLinesForText(text, worksheet.getColumn(colIndex).width);
+        if (lines > maxLinesThisRow) maxLinesThisRow = lines;
+      }
+      // set row height based on max lines encountered in this row
+      worksheet.getRow(currentRow).height = Math.max(20, maxLinesThisRow * LINE_HEIGHT);
+      // if still items left, create next row with empty label area for symmetry
+      if (idx < items.length) {
+        const nextR = worksheet.addRow([]);
+        const nextRN = nextR.number;
+        worksheet.mergeCells(`A${nextRN}:D${nextRN}`);
+        for (let cc = 1; cc <= 4; cc++) {
+          const cell = worksheet.getCell(nextRN, cc);
+          cell.value = '';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+          cell.border = THIN_BORDER;
+          cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+        }
+        currentRow = nextRN;
+      }
+    }
+  };
+
+  // write merged single box E:H (same style as addField detail cell) + auto-height
+  const writeSingleBox = (rowNum, text) => {
+    worksheet.mergeCells(`E${rowNum}:H${rowNum}`);
+    const boxCell = worksheet.getCell(`E${rowNum}`);
+    boxCell.value = text === undefined || text === null ? '' : String(text);
+    boxCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    boxCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    for (let cc = 5; cc <= 8; cc++) {
+      const c = worksheet.getCell(rowNum, cc);
+      c.border = THIN_BORDER;
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      c.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    }
+    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4; // approx total chars space
+    const lines = estimateLinesForText(boxCell.value, effectiveWidth);
+    worksheet.getRow(rowNum).height = Math.max(20, lines * LINE_HEIGHT);
+  };
+
+
   // ---------------- TÍTULO PRINCIPAL y secciones (igual que antes) ----------------
   worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
@@ -415,7 +491,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
-
 
 
 
