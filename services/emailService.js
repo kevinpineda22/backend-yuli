@@ -66,6 +66,10 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     { width: 28 }, // H: item 4
   ];
 
+  const MAX_ITEM_COL_WIDTH = 36;    // límite ancho columnas de items (para B)
+  const CHAR_PER_COL_UNIT = 1.6;    // usado para estimar anchura/lineas
+  const LINE_HEIGHT = 14;
+
   const COMPACT_ROW_HEIGHT = 14;
   const HEADER_ROW_HEIGHT = 34;
   const SMALL_HEADER_FONT_SIZE = 9;
@@ -79,20 +83,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
-  };
-
-  const nivelToCol = (nivel) => {
-    if (nivel === null || nivel === undefined) return null;
-    const s = normalizeText(String(nivel));
-    if (/^\d+$/.test(s)) {
-      if (s === '1') return 2;
-      if (s === '2') return 3;
-      if (s === '3') return 4;
-    }
-    if (/\balto\b/.test(s) || s === 'a') return 2;
-    if (/\bbueno\b/.test(s) || /\bcasi\b/.test(s) || s === 'b') return 3;
-    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || s === 'c') return 4;
-    return null;
   };
 
   const parseToArray = (raw) => {
@@ -113,7 +103,15 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return [raw];
   };
 
-  // ---------------- UI helpers (unchanged style for top sections) ----------------
+  // Estima líneas que ocupará un texto en una columna con ancho `colWidth`
+  const estimateLinesForText = (text, colWidth) => {
+    if (!text) return 1;
+    const charsPerLine = Math.max(12, Math.floor((colWidth || 28) * CHAR_PER_COL_UNIT));
+    const len = String(text).length;
+    return Math.max(1, Math.ceil(len / charsPerLine));
+  };
+
+  // ---------------- UI helpers ----------------
   const addSectionTitle = (text) => {
     const r = worksheet.addRow([]);
     worksheet.mergeCells(`A${r.number}:E${r.number}`);
@@ -151,7 +149,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
-  // ---------------- TÍTULO PRINCIPAL ----------------
+  // ---------------- TÍTULO PRINCIPAL y secciones (igual que antes) ----------------
   worksheet.mergeCells('A1:E1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
@@ -163,7 +161,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 4;
 
-  // ---------------- INFORMACIÓN GENERAL ----------------
   addSectionTitle('INFORMACIÓN GENERAL');
 
   addField('Nombre del cargo', formData.nombrecargo || formData.nombreCargo);
@@ -290,11 +287,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.addRow([]).height = 6;
   };
 
-  // Competencias culturales
+  // write competency blocks
   writeCompetencyBlockHeader('COMPETENCIAS\nCULTURALES');
   writeCompetencyRows(formData.competencias_culturales || formData.competenciasCulturales || []);
-
-  // Competencias del cargo
   writeCompetencyBlockHeader('COMPETENCIAS\nCARGO');
   writeCompetencyRows(formData.competencias_cargo || formData.competenciasCargo || formData.competencias || []);
 
@@ -346,8 +341,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // ---------------- COMPLEMENTARIO (ajustado: sin numeración, margen consistente) ----------------
-  // Header (merge A:H)
+  // ---------------- COMPLEMENTARIO (ajustado: sin numeración, márgenes iguales, auto-altura) ----------------
   const compHeaderRow = worksheet.addRow([]);
   worksheet.mergeCells(`A${compHeaderRow.number}:H${compHeaderRow.number}`);
   const compHdrCell = worksheet.getCell(`A${compHeaderRow.number}`);
@@ -358,25 +352,22 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   compHdrCell.border = THIN_BORDER;
   worksheet.getRow(compHeaderRow.number).height = 18;
 
-  // Helpers for symmetric layout (labels left A:C, data area starting at E)
+  // label writer (A:C merged) - matches addField left cell style
   const writeLabelRow = (labelText) => {
     const r = worksheet.addRow([]);
     const rn = r.number;
-    // merge A:C for label
     worksheet.mergeCells(`A${rn}:C${rn}`);
     const left = worksheet.getCell(`A${rn}`);
     left.value = labelText;
     left.font = { name: 'Arial', bold: true };
     left.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
     left.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-    // apply border + fill to merged area A:C (to match addField style)
     for (let cc = 1; cc <= 3; cc++) {
       const cell = worksheet.getCell(rn, cc);
       cell.border = THIN_BORDER;
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     }
-    // spacer D border
     const spacer = worksheet.getCell(rn, 4);
     spacer.value = '';
     spacer.border = THIN_BORDER;
@@ -385,24 +376,32 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return rn;
   };
 
-  // write items horizontally (E..H) WITHOUT numeración
+  // write items horizontally (E..H) WITHOUT numeración, auto-ajustando altura y limitando ancho
   const writeItemsHorizontal = (startRow, items) => {
     const maxCols = 4; // E,F,G,H
     let idx = 0;
     let currentRow = startRow;
     while (idx < items.length) {
+      let maxLinesThisRow = 1;
       for (let cOff = 0; cOff < maxCols && idx < items.length; cOff++, idx++) {
         const colIndex = 5 + cOff; // E=5
+        const text = String(items[idx]);
+        const colWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(colIndex).width || 28);
+        // set column width at least guessed, capped by MAX_ITEM_COL_WIDTH
+        const guessedWidth = Math.min(Math.max(text.length / CHAR_PER_COL_UNIT, 18), MAX_ITEM_COL_WIDTH);
+        worksheet.getColumn(colIndex).width = Math.max(worksheet.getColumn(colIndex).width || 28, guessedWidth);
         const cell = worksheet.getCell(currentRow, colIndex);
-        cell.value = String(items[idx]); // <-- sin numeración
+        cell.value = text; // SIN numeración
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
         cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
         cell.border = THIN_BORDER;
-        // adjust width slightly if needed (keeps margin consistent)
-        const guessedWidth = Math.min(Math.max(String(items[idx]).length / 1.6, 18), 48);
-        worksheet.getColumn(colIndex).width = Math.max(worksheet.getColumn(colIndex).width || 28, guessedWidth);
+        // estimate lines for height calculation
+        const lines = estimateLinesForText(text, worksheet.getColumn(colIndex).width);
+        if (lines > maxLinesThisRow) maxLinesThisRow = lines;
       }
-      worksheet.getRow(currentRow).height = 24;
+      // set row height based on max lines encountered in this row
+      worksheet.getRow(currentRow).height = Math.max(20, maxLinesThisRow * LINE_HEIGHT);
+      // if still items left, create next row with empty label area for symmetry
       if (idx < items.length) {
         const nextR = worksheet.addRow([]);
         const nextRN = nextR.number;
@@ -419,7 +418,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     }
   };
 
-  // write merged single box E:H (same style as addField detail cell)
+  // write merged single box E:H (same style as addField detail cell) + auto-height
   const writeSingleBox = (rowNum, text) => {
     worksheet.mergeCells(`E${rowNum}:H${rowNum}`);
     const boxCell = worksheet.getCell(`E${rowNum}`);
@@ -427,14 +426,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     boxCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
     boxCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     for (let cc = 5; cc <= 8; cc++) {
-      worksheet.getCell(rowNum, cc).border = THIN_BORDER;
-      worksheet.getCell(rowNum, cc).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      worksheet.getCell(rowNum, cc).alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      const c = worksheet.getCell(rowNum, cc);
+      c.border = THIN_BORDER;
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      c.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     }
-    worksheet.getRow(rowNum).height = 20;
+    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4; // approx total chars space
+    const lines = estimateLinesForText(boxCell.value, effectiveWidth);
+    worksheet.getRow(rowNum).height = Math.max(20, lines * LINE_HEIGHT);
   };
 
-  // Fill complementario with parsed data
+  // Fill complementario with parsed data (no numeración, margins consistent)
   const entrenamientoItems = parseToArray(formData.plan_entrenamiento || formData.planEntrenamiento || []);
   const rn_ent = writeLabelRow('Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)');
   if (entrenamientoItems.length > 0) writeItemsHorizontal(rn_ent, entrenamientoItems);
@@ -455,7 +457,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   if (compIngresoItems.length > 0) writeSingleBox(rn_comp, compIngresoItems[0]);
   else writeSingleBox(rn_comp, 'N/A');
 
-  // pequeño espacio final
   worksheet.addRow([]).height = 6;
 
   // asegurar wrapText/alineación global
