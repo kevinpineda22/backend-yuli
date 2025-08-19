@@ -57,17 +57,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   // Columnas (extendidas para E-H área de datos)
   worksheet.columns = [
     { width: 36 }, // A: etiqueta/competencia (merge A:C)
-    { width: 4  }, // B (parte de etiqueta)
-    { width: 4  }, // C (parte de etiqueta)
-    { width: 4  }, // D (separador visual)
+    { width: 4 }, // B (parte de etiqueta)
+    { width: 4 }, // C (parte de etiqueta)
+    { width: 4 }, // D (separador visual)
     { width: 28 }, // E: item 1 (misma columna de detalle que addField)
     { width: 28 }, // F: item 2
     { width: 28 }, // G: item 3
     { width: 28 }, // H: item 4
   ];
 
-  const MAX_ITEM_COL_WIDTH = 36;    // límite ancho columnas de items (para B)
-  const CHAR_PER_COL_UNIT = 1.6;    // usado para estimar anchura/lineas
+  const MAX_ITEM_COL_WIDTH = 36;    // límite ancho columnas de items (para B)
+  const CHAR_PER_COL_UNIT = 1.6;    // usado para estimar anchura/lineas
   const LINE_HEIGHT = 14;
 
   const COMPACT_ROW_HEIGHT = 14;
@@ -110,7 +110,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
           const parsed = JSON.parse(s);
           if (Array.isArray(parsed)) return parsed.filter(Boolean);
           return [parsed];
-        } catch (e) {}
+        } catch (e) { }
       }
       return s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     }
@@ -128,7 +128,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   // ---------------- UI helpers ----------------
   const addSectionTitle = (text) => {
     const r = worksheet.addRow([]);
-    worksheet.mergeCells(`A${r.number}:E${r.number}`);
+    worksheet.mergeCells(`A${r.number}:H${r.number}`);
     const c = worksheet.getCell(`A${r.number}`);
     c.value = text;
     c.font = { name: 'Arial', bold: true, color: { argb: COLOR_TITLE } };
@@ -140,9 +140,12 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const addField = (label, value) => {
     const safe = (value === undefined || value === null || value === '') ? 'N/A' : value;
-    const r = worksheet.addRow([label, '', '', '', safe]);
-    r.getCell(1).font = { bold: true };
-    [r.getCell(1), r.getCell(5)].forEach(cell => {
+    const r = worksheet.addRow([label, '', '', '', safe, '', '', '']);
+    worksheet.mergeCells(`E${r.number}:H${r.number}`);
+    const labelCell = r.getCell(1);
+    const valueCell = r.getCell(5);
+    labelCell.font = { bold: true };
+    [labelCell, valueCell].forEach(cell => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.border = THIN_BORDER;
       cell.alignment = { wrapText: true, vertical: 'top' };
@@ -152,7 +155,8 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const addHyperlink = (label, url) => {
     if (!url) { addField(label, 'N/A'); return; }
-    const r = worksheet.addRow([label, '', '', '', 'Ver documento']);
+    const r = worksheet.addRow([label, '', '', '', 'Ver documento', '', '', '']);
+    worksheet.mergeCells(`E${r.number}:H${r.number}`);
     r.getCell(5).value = { text: 'Ver documento', hyperlink: String(url) };
     r.getCell(5).font = { name: 'Arial', color: { argb: 'FF0563C1' }, underline: true };
     [r.getCell(1), r.getCell(5)].forEach(cell => {
@@ -163,8 +167,84 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
+  // label writer (A:C merged) - matches addField left cell style
+  const writeLabelRow = (labelText) => {
+    const r = worksheet.addRow([]);
+    const rn = r.number;
+    worksheet.mergeCells(`A${rn}:D${rn}`);
+    const left = worksheet.getCell(`A${rn}`);
+    left.value = labelText;
+    left.font = { name: 'Arial', bold: true };
+    left.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    left.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    for (let cc = 1; cc <= 4; cc++) {
+      const cell = worksheet.getCell(rn, cc);
+      cell.border = THIN_BORDER;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    }
+    return rn;
+  };
+
+  // write items horizontally (E..H) WITHOUT numeración, auto-ajustando altura y limitando ancho
+  const writeItemsHorizontal = (startRow, items) => {
+    const maxCols = 4; // E,F,G,H
+    let idx = 0;
+    let currentRow = startRow;
+    while (idx < items.length) {
+      let maxLinesThisRow = 1;
+      for (let cOff = 0; cOff < maxCols && idx < items.length; cOff++, idx++) {
+        const colIndex = 5 + cOff; // E=5
+        const text = String(items[idx]);
+        const cell = worksheet.getCell(currentRow, colIndex);
+        cell.value = `${idx + 1}. ${text}`;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+        cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+        cell.border = THIN_BORDER;
+        // estimate lines for height calculation
+        const lines = estimateLinesForText(text, worksheet.getColumn(colIndex).width);
+        if (lines > maxLinesThisRow) maxLinesThisRow = lines;
+      }
+      // set row height based on max lines encountered in this row
+      worksheet.getRow(currentRow).height = Math.max(20, maxLinesThisRow * LINE_HEIGHT);
+      // if still items left, create next row with empty label area for symmetry
+      if (idx < items.length) {
+        const nextR = worksheet.addRow([]);
+        const nextRN = nextR.number;
+        worksheet.mergeCells(`A${nextRN}:D${nextRN}`);
+        for (let cc = 1; cc <= 4; cc++) {
+          const cell = worksheet.getCell(nextRN, cc);
+          cell.value = '';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+          cell.border = THIN_BORDER;
+          cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+        }
+        currentRow = nextRN;
+      }
+    }
+  };
+
+  // write merged single box E:H (same style as addField detail cell) + auto-height
+  const writeSingleBox = (rowNum, text) => {
+    worksheet.mergeCells(`E${rowNum}:H${rowNum}`);
+    const boxCell = worksheet.getCell(`E${rowNum}`);
+    boxCell.value = text === undefined || text === null ? '' : String(text);
+    boxCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    boxCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    for (let cc = 5; cc <= 8; cc++) {
+      const c = worksheet.getCell(rowNum, cc);
+      c.border = THIN_BORDER;
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      c.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+    }
+    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4; // approx total chars space
+    const lines = estimateLinesForText(boxCell.value, effectiveWidth);
+    worksheet.getRow(rowNum).height = Math.max(20, lines * LINE_HEIGHT);
+  };
+
+
   // ---------------- TÍTULO PRINCIPAL y secciones (igual que antes) ----------------
-  worksheet.mergeCells('A1:E1');
+  worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
   titleCell.font = { name: 'Arial', bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
@@ -219,7 +299,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   // ---------------- COMPETENCIAS REQUERIDAS ----------------
   const compTitleRow = worksheet.addRow([]);
-  worksheet.mergeCells(`A${compTitleRow.number}:E${compTitleRow.number}`);
+  worksheet.mergeCells(`A${compTitleRow.number}:H${compTitleRow.number}`);
   const compTitleCell = worksheet.getCell(`A${compTitleRow.number}`);
   compTitleCell.value = 'COMPETENCIAS REQUERIDAS';
   compTitleCell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
@@ -235,9 +315,12 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       'A\n(Alto)\n(1)\n(Siempre)',
       'B\n(Bueno)\n(2)\n(Casi siempre)',
       'C\n(Mín necesario)\n(3)\n(En ocasiones)',
-      'Definición'
+      'Definición',
+      '',
+      '',
+      ''
     ]);
-
+    worksheet.mergeCells(`E${headerRow.number}:H${headerRow.number}`);
     worksheet.mergeCells(`A${topRow.number}:A${headerRow.number}`);
     const leftCell = worksheet.getCell(`A${topRow.number}`);
     leftCell.value = leftLabel;
@@ -253,7 +336,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = THIN_BORDER;
     });
-
     worksheet.getRow(topRow.number).height = HEADER_ROW_HEIGHT;
     worksheet.getRow(headerRow.number).height = HEADER_ROW_HEIGHT;
   };
@@ -276,7 +358,8 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     }).filter(Boolean);
 
     if (normalized.length === 0) {
-      const r = worksheet.addRow(['', '', '', '', '']);
+      const r = worksheet.addRow(['', '', '', '', '', '', '', '']);
+      worksheet.mergeCells(`E${r.number}:H${r.number}`);
       r.eachCell(c => { c.border = THIN_BORDER; c.alignment = { wrapText: true, vertical: 'top' }; });
       r.height = COMPACT_ROW_HEIGHT;
       return;
@@ -285,11 +368,12 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     normalized.forEach(c => {
       const nivelRaw = c.nivel !== undefined && c.nivel !== null ? String(c.nivel) : '';
       const colIndex = nivelToCol(nivelRaw); // 2|3|4 o null
-      const rowArr = [c.competencia || '', '', '', '', c.definicion || ''];
+      const rowArr = [c.competencia || '', '', '', '', c.definicion || '', '', '', ''];
       if (colIndex === 2) rowArr[1] = 'X';
       else if (colIndex === 3) rowArr[2] = 'X';
       else if (colIndex === 4) rowArr[3] = 'X';
       const r = worksheet.addRow(rowArr);
+      worksheet.mergeCells(`E${r.number}:H${r.number}`);
       r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       r.getCell(1).alignment = { wrapText: true, vertical: 'top' };
       [2, 3, 4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
@@ -324,13 +408,15 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   }).filter(Boolean);
 
   if (normResp.length === 0) {
-    const r = worksheet.addRow(['No aplica', '', '', '', 'No hay responsabilidades definidas']);
+    const r = worksheet.addRow(['No aplica', '', '', '', 'No hay responsabilidades definidas', '', '', '']);
+    worksheet.mergeCells(`A${r.number}:D${r.number}`);
+    worksheet.mergeCells(`E${r.number}:H${r.number}`);
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; c.alignment = { wrapText: true, vertical: 'top' }; });
     r.height = COMPACT_ROW_HEIGHT;
   } else {
     normResp.forEach((rp, idx) => {
       const hr = worksheet.addRow([]);
-      worksheet.mergeCells(`A${hr.number}:E${hr.number}`);
+      worksheet.mergeCells(`A${hr.number}:H${hr.number}`);
       const hc = worksheet.getCell(`A${hr.number}`);
       hc.value = `RESPONSABILIDAD ${idx + 1}`;
       hc.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -339,8 +425,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       hc.border = THIN_BORDER;
       worksheet.getRow(hr.number).height = 16;
 
-      const dr = worksheet.addRow([rp.titulo || '', '', '', '', rp.detalle || '']);
+      const dr = worksheet.addRow([rp.titulo || '', '', '', '', rp.detalle || '', '', '', '']);
       worksheet.mergeCells(`A${dr.number}:D${dr.number}`);
+      worksheet.mergeCells(`E${dr.number}:H${dr.number}`);
       const titleCellRow = worksheet.getCell(`A${dr.number}`);
       const detailCellRow = worksheet.getCell(`E${dr.number}`);
       titleCellRow.font = { bold: true };
@@ -366,90 +453,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   compHdrCell.border = THIN_BORDER;
   worksheet.getRow(compHeaderRow.number).height = 18;
 
-  // label writer (A:C merged) - matches addField left cell style
-  const writeLabelRow = (labelText) => {
-    const r = worksheet.addRow([]);
-    const rn = r.number;
-    worksheet.mergeCells(`A${rn}:C${rn}`);
-    const left = worksheet.getCell(`A${rn}`);
-    left.value = labelText;
-    left.font = { name: 'Arial', bold: true };
-    left.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-    left.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-    for (let cc = 1; cc <= 3; cc++) {
-      const cell = worksheet.getCell(rn, cc);
-      cell.border = THIN_BORDER;
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-    }
-    const spacer = worksheet.getCell(rn, 4);
-    spacer.value = '';
-    spacer.border = THIN_BORDER;
-    spacer.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-    spacer.alignment = { wrapText: true, vertical: 'top' };
-    return rn;
-  };
-
-  // write items horizontally (E..H) WITHOUT numeración, auto-ajustando altura y limitando ancho
-  const writeItemsHorizontal = (startRow, items) => {
-    const maxCols = 4; // E,F,G,H
-    let idx = 0;
-    let currentRow = startRow;
-    while (idx < items.length) {
-      let maxLinesThisRow = 1;
-      for (let cOff = 0; cOff < maxCols && idx < items.length; cOff++, idx++) {
-        const colIndex = 5 + cOff; // E=5
-        const text = String(items[idx]);
-        const colWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(colIndex).width || 28);
-        // set column width at least guessed, capped by MAX_ITEM_COL_WIDTH
-        const guessedWidth = Math.min(Math.max(text.length / CHAR_PER_COL_UNIT, 18), MAX_ITEM_COL_WIDTH);
-        worksheet.getColumn(colIndex).width = Math.max(worksheet.getColumn(colIndex).width || 28, guessedWidth);
-        const cell = worksheet.getCell(currentRow, colIndex);
-        cell.value = text; // SIN numeración
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-        cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-        cell.border = THIN_BORDER;
-        // estimate lines for height calculation
-        const lines = estimateLinesForText(text, worksheet.getColumn(colIndex).width);
-        if (lines > maxLinesThisRow) maxLinesThisRow = lines;
-      }
-      // set row height based on max lines encountered in this row
-      worksheet.getRow(currentRow).height = Math.max(20, maxLinesThisRow * LINE_HEIGHT);
-      // if still items left, create next row with empty label area for symmetry
-      if (idx < items.length) {
-        const nextR = worksheet.addRow([]);
-        const nextRN = nextR.number;
-        worksheet.mergeCells(`A${nextRN}:C${nextRN}`);
-        for (let cc = 1; cc <= 4; cc++) {
-          const cell = worksheet.getCell(nextRN, cc);
-          cell.value = '';
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-          cell.border = THIN_BORDER;
-          cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-        }
-        currentRow = nextRN;
-      }
-    }
-  };
-
-  // write merged single box E:H (same style as addField detail cell) + auto-height
-  const writeSingleBox = (rowNum, text) => {
-    worksheet.mergeCells(`E${rowNum}:H${rowNum}`);
-    const boxCell = worksheet.getCell(`E${rowNum}`);
-    boxCell.value = text === undefined || text === null ? '' : String(text);
-    boxCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-    boxCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-    for (let cc = 5; cc <= 8; cc++) {
-      const c = worksheet.getCell(rowNum, cc);
-      c.border = THIN_BORDER;
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      c.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
-    }
-    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4; // approx total chars space
-    const lines = estimateLinesForText(boxCell.value, effectiveWidth);
-    worksheet.getRow(rowNum).height = Math.max(20, lines * LINE_HEIGHT);
-  };
-
   // Fill complementario with parsed data (no numeración, margins consistent)
   const entrenamientoItems = parseToArray(formData.plan_entrenamiento || formData.planEntrenamiento || []);
   const rn_ent = writeLabelRow('Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)');
@@ -463,12 +466,12 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const carreraItems = parseToArray(formData.plan_carrera || formData.planCarrera || []);
   const rn_car = writeLabelRow('Plan Carrera');
-  if (carreraItems.length > 0) writeSingleBox(rn_car, carreraItems[0]);
+  if (carreraItems.length > 0) writeSingleBox(rn_car, carreraItems.map((item, index) => `${index + 1}. ${item}`).join('\n'));
   else writeSingleBox(rn_car, 'N/A');
 
   const compIngresoItems = parseToArray(formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso || []);
   const rn_comp = writeLabelRow('Competencias para desarrollar en el ingreso');
-  if (compIngresoItems.length > 0) writeSingleBox(rn_comp, compIngresoItems[0]);
+  if (compIngresoItems.length > 0) writeSingleBox(rn_comp, compIngresoItems.map((item, index) => `${index + 1}. ${item}`).join('\n'));
   else writeSingleBox(rn_comp, 'N/A');
 
   worksheet.addRow([]).height = 6;
