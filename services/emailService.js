@@ -54,17 +54,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     bottom: { style: 'thin' }, right: { style: 'thin' }
   };
 
-  // Columnas (ajustadas para que headers A/B/C entren)
+  // Columnas
   worksheet.columns = [
-    { width: 36 }, // A: etiqueta/competencia
-    { width: 14 }, // B (A Alto)
-    { width: 14 }, // C (B Bueno)
-    { width: 16 }, // D (C Min)
-    { width: 80 }  // E (Definición / contenido)
+    { width: 36 }, // A
+    { width: 18 }, // B
+    { width: 18 }, // C
+    { width: 18 }, // D
+    { width: 70 }  // E
   ];
 
   const COMPACT_ROW_HEIGHT = 14;
-  const HEADER_ROW_HEIGHT = 34; // alto del header para que se vean las líneas
+  const HEADER_ROW_HEIGHT = 18;
   const SMALL_HEADER_FONT_SIZE = 9;
 
   // ---------------- Helpers ----------------
@@ -73,30 +73,25 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return String(s)
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // quita acentos
+      .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   };
 
-  // Detección robusta del nivel -> devuelve 2|3|4 (columnas B,C,D) o null
   const nivelToCol = (nivel) => {
     if (nivel === null || nivel === undefined) return null;
     const s = normalizeText(String(nivel));
-
     if (/^\d+$/.test(s)) {
       if (s === '1') return 2;
       if (s === '2') return 3;
       if (s === '3') return 4;
     }
-
     if (/\balto\b/.test(s) || s === 'a') return 2;
     if (/\bbueno\b/.test(s) || /\bcasi\b/.test(s) || s === 'b') return 3;
-    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\bmin necesario\b/.test(s) || /\bocasiones\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
-
+    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
     return null;
   };
 
-  // parse array / JSON-string / newline separated
   const parseToArray = (raw) => {
     if (raw === null || raw === undefined) return [];
     if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -117,7 +112,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return [raw];
   };
 
-  // compact helpers
   const addSectionTitle = (text) => {
     const r = worksheet.addRow([]);
     worksheet.mergeCells(`A${r.number}:E${r.number}`);
@@ -155,7 +149,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
-  // ---------------- TÍTULO PRINCIPAL ----------------
+  // ---------------- TÍTULO ----------------
   worksheet.mergeCells('A1:E1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
@@ -176,7 +170,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Proceso al que pertenece', formData.proceso);
   addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
-  // POBLACIÓN FOCALIZADA: mostrar en la misma fila solo las opciones seleccionadas o 'Ninguna'
+  // Población focalizada en la misma fila
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
   const poblacionArr = parseToArray(poblacionRaw).map(x => normalizeText(x));
@@ -224,13 +218,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const writeCompetencyBlockHeader = (leftLabel) => {
     const topRow = worksheet.addRow([]);
-    const headerRow = worksheet.addRow([
-      '',
-      'A\n(Alto)\n(1)\n(Siempre)',
-      'B\n(Bueno)\n(2)\n(Casi siempre)',
-      'C\n(Mín necesario)\n(3)\n(En ocasiones)',
-      'Definición'
-    ]);
+    const headerRow = worksheet.addRow(['', 'A\n(Alto)\n(1)\n(Siempre)', 'B\n(Bueno)\n(2)\n(Casi siempre)', 'C\n(Mín necesario)\n(3)\n(En ocasiones)', 'Definición']);
 
     worksheet.mergeCells(`A${topRow.number}:A${headerRow.number}`);
     const leftCell = worksheet.getCell(`A${topRow.number}`);
@@ -252,7 +240,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(headerRow.number).height = HEADER_ROW_HEIGHT;
   };
 
-  // escribe filas de competencias y marca X en la columna correcta
   const writeCompetencyRows = (rawList) => {
     const parsed = parseToArray(rawList);
     const normalized = parsed.map(item => {
@@ -279,7 +266,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
     normalized.forEach(c => {
       const nivelRaw = c.nivel !== undefined && c.nivel !== null ? String(c.nivel) : '';
-      const colIndex = nivelToCol(nivelRaw); // 2|3|4 o null
+      const colIndex = nivelToCol(nivelRaw);
       const rowArr = [c.competencia || '', '', '', '', c.definicion || ''];
       if (colIndex === 2) rowArr[1] = 'X';
       else if (colIndex === 3) rowArr[2] = 'X';
@@ -287,7 +274,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       const r = worksheet.addRow(rowArr);
       r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       r.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-      [2, 3, 4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
+      [2,3,4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
       r.getCell(5).alignment = { wrapText: true, vertical: 'top' };
       r.eachCell({ includeEmpty: true }, cell => { cell.border = THIN_BORDER; });
       r.height = COMPACT_ROW_HEIGHT;
@@ -296,18 +283,16 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.addRow([]).height = 6;
   };
 
-  // Competencias culturales
+  // Competencias culturales y cargo
   writeCompetencyBlockHeader('COMPETENCIAS\nCULTURALES');
   writeCompetencyRows(formData.competencias_culturales || formData.competenciasCulturales || []);
 
-  // Competencias del cargo
   writeCompetencyBlockHeader('COMPETENCIAS\nCARGO');
   writeCompetencyRows(formData.competencias_cargo || formData.competenciasCargo || formData.competencias || []);
 
   worksheet.addRow([]).height = 6;
 
   // ---------------- RESPONSABILIDADES ----------------
-
   const rawResp = formData.responsabilidades || formData.responsabilidadesList || formData.responsabilidadesArray || [];
   const parsedResp = parseToArray(rawResp);
   const normResp = parsedResp.map(r => {
@@ -353,33 +338,118 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // ---------------- COMPLEMENTARIO ----------------
+  // ---------------- COMPLEMENTARIO (Plan de Entrenamiento sin títulos en columnas) ----------------
   addSectionTitle('COMPLEMENTARIO');
 
-  addField(
-    'Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)',
-    formData.plan_entrenamiento || formData.planEntrenamiento
-  );
-  addField(
-    'Plan de Capacitación Continua',
-    formData.plan_capacitacion_continua || formData.planCapacitacionContinua
-  );
-  addField('Plan de Carrera', formData.plan_carrera || formData.planCarrera);
-  addField(
-    'Competencias para Desarrollar en el Ingreso',
-    formData.competencias_desarrollo_ingreso ||
-    formData.competenciasDesarrolloIngreso
-  );
+  const planRaw = formData.plan_entrenamiento || formData.planEntrenamiento || formData.plan_de_entrenamiento || formData.complementario || null;
 
+  const extractPlanColumns = (raw) => {
+    const emptyCols = ['', '', '', ''];
+    if (!raw) return emptyCols;
+    if (typeof raw === 'object' && !Array.isArray(raw)) {
+      return [
+        raw.induccion || raw.induccionOrganizacional || raw.induccion_organizacional || raw.col1 || raw.induction || '',
+        raw.supervision || raw.supervisionPuntoVenta || raw.supervision_pv || raw.col2 || '',
+        raw.analisis || raw.analisisComercial || raw.analisis_comercial || raw.col3 || '',
+        raw.seguridad || raw.seguridadSalud || raw.seguridad_y_salud || raw.col4 || ''
+      ].map(v => (v === null || v === undefined ? '' : String(v)));
+    }
+    if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (!s) return emptyCols;
+      if (s.startsWith('[') || s.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(s);
+          return extractPlanColumns(parsed);
+        } catch (e) {
+          // fallback
+        }
+      }
+      if (s.includes('||')) {
+        const parts = s.split('||').map(x => x.trim());
+        return [parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||''];
+      }
+      if (s.includes('|')) {
+        const parts = s.split('|').map(x => x.trim());
+        return [parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||''];
+      }
+      const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) return emptyCols;
+      if (lines.length <= 4) {
+        const cols = ['', '', '', ''];
+        for (let i = 0; i < lines.length && i < 4; i++) cols[i] = lines[i];
+        return cols;
+      }
+      const groups = [[], [], [], []];
+      lines.forEach((ln, idx) => groups[idx % 4].push(ln));
+      return groups.map(g => g.join('\n'));
+    }
+    if (Array.isArray(raw)) {
+      const cols = ['', '', '', ''];
+      for (let i = 0; i < Math.min(4, raw.length); i++) cols[i] = raw[i] == null ? '' : String(raw[i]);
+      return cols;
+    }
+    return String(raw).split(/\r?\n/).slice(0,4).concat(['', '', '', '']).slice(0,4);
+  };
 
-  // asegurar wrapText/alineación global
+  const [planCol1, planCol2, planCol3, planCol4] = extractPlanColumns(planRaw);
+
+  // Left merged label for the plan
+  const planTop = worksheet.addRow([]);
+  const planHeader = worksheet.addRow(['', '', '', '', '']); // <-- sin títulos en las columnas
+  worksheet.mergeCells(`A${planTop.number}:A${planHeader.number}`);
+  const leftPlanCell = worksheet.getCell(`A${planTop.number}`);
+  leftPlanCell.value = 'Plan de entrenamiento (Inducción y Acompañamiento - Primeros 90 días)';
+  leftPlanCell.font = { name: 'Arial', bold: true };
+  leftPlanCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LEFT_GRAY } };
+  leftPlanCell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+  leftPlanCell.border = THIN_BORDER;
+
+  // Style header empty cells (solo para que tengan borde/gris, sin texto)
+  planHeader.eachCell((cell, colNumber) => {
+    if (colNumber === 1) return;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
+    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+    cell.border = THIN_BORDER;
+  });
+  worksheet.getRow(planTop.number).height = 18;
+  worksheet.getRow(planHeader.number).height = 18;
+
+  // Preparar arrays por linea
+  const colLines = [
+    (planCol1 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+    (planCol2 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+    (planCol3 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+    (planCol4 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+  ];
+  const maxLines = Math.max(1, colLines[0].length, colLines[1].length, colLines[2].length, colLines[3].length);
+
+  for (let i = 0; i < maxLines; i++) {
+    const r = worksheet.addRow(['', colLines[0][i] || '', colLines[1][i] || '', colLines[2][i] || '', colLines[3][i] || '']);
+    [1,2,3,4,5].forEach(ci => {
+      const cell = r.getCell(ci);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      cell.border = THIN_BORDER;
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: (ci === 1 ? 'left' : 'left') };
+    });
+    r.height = COMPACT_ROW_HEIGHT * Math.max(
+      1,
+      ((r.getCell(2).value || '').toString().split('\n').length),
+      ((r.getCell(3).value || '').toString().split('\n').length),
+      ((r.getCell(4).value || '').toString().split('\n').length),
+      ((r.getCell(5).value || '').toString().split('\n').length)
+    );
+  }
+
+  worksheet.addRow([]).height = 6;
+
+  // wrapText global
   worksheet.eachRow(row => {
     row.eachCell({ includeEmpty: true }, cell => {
       if (!cell.alignment) cell.alignment = { wrapText: true, vertical: 'top' };
     });
   });
 
-  // generar buffer y devolver attachment
   const buffer = await workbook.xlsx.writeBuffer();
   return {
     filename: `Solicitud_${workflow_id}.xlsx`,
@@ -387,7 +457,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
-
 
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
