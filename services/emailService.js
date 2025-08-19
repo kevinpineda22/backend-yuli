@@ -354,7 +354,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   worksheet.addRow([]).height = 6;
 
 
-   // ---------------- COMPLEMENTARIO (layout especifico para imagen) ----------------
+ // ---------------- COMPLEMENTARIO ----------------
   addSectionTitle('COMPLEMENTARIO');
 
   // Helper específico para fila: izquierda A:C (etiqueta), D columna separadora, E contenido/detalle
@@ -443,35 +443,77 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(rn).height = opts.height || 28;
   };
 
-  // Ahora añadimos las filas con los datos (usa campos del formData si existen)
-  addComplementSplitRow(
+  // ---------------- COMPLEMENTARIO: lista por item (cada item en su "cuadro") ----------------
+
+  // Helper: crea una fila por cada item del array (usa parseToArray definido arriba)
+  const addComplementList = (label, rawValue, opts = {}) => {
+    const items = parseToArray(rawValue); // ya existente en tu código
+    if (!items || items.length === 0) {
+      // si no hay items, ponemos una fila con N/A
+      addComplementSplitRow(label, opts.emptyPlaceholder || 'N/A', opts);
+      return;
+    }
+
+    items.forEach((it, idx) => {
+      const r = worksheet.addRow([]);
+      const rn = r.number;
+
+      // layout: A:C (etiqueta solo en la primera fila), D separador, E contenido del item
+      worksheet.mergeCells(`A${rn}:C${rn}`);
+      worksheet.mergeCells(`D${rn}:D${rn}`);
+      worksheet.mergeCells(`E${rn}:E${rn}`);
+
+      const leftCell = worksheet.getCell(`A${rn}`);
+      const midCell = worksheet.getCell(`D${rn}`);
+      const rightCell = worksheet.getCell(`E${rn}`);
+
+      // Colocamos la etiqueta solo en la primera fila del listado
+      leftCell.value = idx === 0 ? label : '';
+      // Numeramos cada item para que sea más legible: "1. Texto..."
+      rightCell.value = `${idx + 1}. ${String(it)}`;
+
+      // Estilos y rellenos (puedes ajustar colores)
+      leftCell.font = { name: 'Arial', bold: idx === 0 };
+      leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+      midCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
+
+      [leftCell, midCell, rightCell].forEach(cell => {
+        cell.border = THIN_BORDER;
+        cell.alignment = { wrapText: true, vertical: 'top' };
+        cell.font = cell.font || { name: 'Arial' };
+      });
+
+      // Altura para legibilidad
+      worksheet.getRow(rn).height = opts.height || 20;
+    });
+
+    // pequeño espacio después del bloque
+    worksheet.addRow([]).height = 4;
+  };
+
+  // Usamos addComplementList para mostrar cada item por separado
+  addComplementList(
     'Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)',
     formData.plan_entrenamiento || formData.planEntrenamiento || ''
   );
 
-  // Fila con subtítulo centrado tipo imagen: Plan de Capacitación Continua + subtítulo a la derecha
-  addComplementSubtitleRow(
+  addComplementList(
     'Plan de Capacitación Continua',
-    formData.plan_capacitacion_continua_subtitulo ||
-      formData.planCapacitacionContinuaSubtitulo ||
-      'Desarrollo y Actualización – Semestral/Anual'
+    formData.plan_capacitacion_continua || formData.planCapacitacionContinua || 'Desarrollo y Actualización – Semestral/Anual'
   );
 
-  // Plan Carrera con "Ruta de Crecimiento Interno" como subtítulo/columna derecha
-  addComplementSplitRow(
+  addComplementList(
     'Plan Carrera',
-    formData.plan_carrera_detalle || formData.planCarreraDetalle || 'Ruta de Crecimiento Interno'
+    formData.plan_carrera || formData.planCarrera || ''
   );
 
-  // Competencias para desarrollar en el ingreso -> fila ancha para texto largo
-  addComplementWideRow(
+  addComplementList(
     'Competencias para desarrollar en el ingreso',
     formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso || ''
   );
 
-  // espacio final
   worksheet.addRow([]).height = 6;
-
 
   // asegurar wrapText/alineación global
   worksheet.eachRow(row => {
