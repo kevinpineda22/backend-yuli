@@ -56,18 +56,18 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   // Columnas (extendidas para E-H área de datos)
   worksheet.columns = [
-    { width: 36 }, // A: etiqueta/competencia (merge A:C)
-    { width: 4 }, // B (parte de etiqueta)
-    { width: 4 }, // C (parte de etiqueta)
-    { width: 4 }, // D (separador visual)
-    { width: 28 }, // E: item 1 (misma columna de detalle que addField)
-    { width: 28 }, // F: item 2
-    { width: 28 }, // G: item 3
-    { width: 28 }, // H: item 4
+    { width: 18 }, // A: etiqueta/competencia (merge A:C)
+    { width: 3 }, // B (parte de etiqueta)
+    { width: 3 }, // C (parte de etiqueta)
+    { width: 3 }, // D (separador visual)
+    { width: 14 }, // E: item 1 (misma columna de detalle que addField)
+    { width: 14 }, // F: item 2
+    { width: 14 }, // G: item 3
+    { width: 14 }, // H: item 4
   ];
 
-  const MAX_ITEM_COL_WIDTH = 36;    // límite ancho columnas de items (para B)
-  const CHAR_PER_COL_UNIT = 1.6;    // usado para estimar anchura/lineas
+  const MAX_ITEM_COL_WIDTH = 18;    // límite ancho columnas de items (para B)
+  const CHAR_PER_COL_UNIT = 1.1;    // usado para estimar anchura/lineas (ajustado para menos ancho)
   const LINE_HEIGHT = 14;
 
   const COMPACT_ROW_HEIGHT = 14;
