@@ -131,9 +131,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.mergeCells(`A${r.number}:H${r.number}`);
     const c = worksheet.getCell(`A${r.number}`);
     c.value = text;
-    c.font = { name: 'Arial', bold: true, color: { argb: COLOR_TITLE } };
+    c.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
-    c.alignment = { horizontal: 'left', vertical: 'middle' };
+    c.alignment = { horizontal: 'center', vertical: 'middle' };
     c.border = THIN_BORDER;
     worksheet.getRow(r.number).height = 18;
   };
@@ -414,16 +414,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; c.alignment = { wrapText: true, vertical: 'top' }; });
     r.height = COMPACT_ROW_HEIGHT;
   } else {
+    // RESPONSABILIDAD
     normResp.forEach((rp, idx) => {
       const hr = worksheet.addRow([]);
       worksheet.mergeCells(`A${hr.number}:H${hr.number}`);
       const hc = worksheet.getCell(`A${hr.number}`);
       hc.value = `RESPONSABILIDAD ${idx + 1}`;
-      hc.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E8B22' } };
+      hc.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+      hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
       hc.alignment = { horizontal: 'center', vertical: 'middle' };
       hc.border = THIN_BORDER;
-      worksheet.getRow(hr.number).height = 16;
+      worksheet.getRow(hr.number).height = 18;
 
       const dr = worksheet.addRow([rp.titulo || '', '', '', '', rp.detalle || '', '', '', '']);
       worksheet.mergeCells(`A${dr.number}:D${dr.number}`);
