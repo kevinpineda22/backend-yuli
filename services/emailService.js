@@ -287,7 +287,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       const r = worksheet.addRow(rowArr);
       r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       r.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-      [2,3,4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
+      [2, 3, 4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
       r.getCell(5).alignment = { wrapText: true, vertical: 'top' };
       r.eachCell({ includeEmpty: true }, cell => { cell.border = THIN_BORDER; });
       r.height = COMPACT_ROW_HEIGHT;
@@ -352,6 +352,25 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   }
 
   worksheet.addRow([]).height = 6;
+
+  // ---------------- COMPLEMENTARIO ----------------
+  addSectionTitle('COMPLEMENTARIO');
+
+  addField(
+    'Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)',
+    formData.plan_entrenamiento || formData.planEntrenamiento
+  );
+  addField(
+    'Plan de Capacitación Continua',
+    formData.plan_capacitacion_continua || formData.planCapacitacionContinua
+  );
+  addField('Plan de Carrera', formData.plan_carrera || formData.planCarrera);
+  addField(
+    'Competencias para Desarrollar en el Ingreso',
+    formData.competencias_desarrollo_ingreso ||
+    formData.competenciasDesarrolloIngreso
+  );
+
 
   // asegurar wrapText/alineación global
   worksheet.eachRow(row => {
