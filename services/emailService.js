@@ -54,18 +54,18 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     bottom: { style: 'thin' }, right: { style: 'thin' }
   };
 
-  // Columnas (A etiqueta | B | C | D | E contenido/definición)
+  // Columnas (ajustadas para que headers A/B/C entren)
   worksheet.columns = [
-    { width: 36 }, // A
-    { width: 18 }, // B
-    { width: 18 }, // C
-    { width: 18 }, // D
-    { width: 72 }  // E
+    { width: 36 }, // A: etiqueta/competencia
+    { width: 14 }, // B (A Alto)
+    { width: 14 }, // C (B Bueno)
+    { width: 16 }, // D (C Min)
+    { width: 80 }  // E (Definición / contenido)
   ];
 
-  const COMPACT_ROW_HEIGHT = 16;
-  const HEADER_ROW_HEIGHT = 42; // mayor para que A/B/C se vean bien
-  const SMALL_HEADER_FONT_SIZE = 10;
+  const COMPACT_ROW_HEIGHT = 14;
+  const HEADER_ROW_HEIGHT = 34; // alto del header para que se vean las líneas
+  const SMALL_HEADER_FONT_SIZE = 9;
 
   // ---------------- Helpers ----------------
   const normalizeText = (s) => {
@@ -73,27 +73,30 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return String(s)
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u0300-\u036f]/g, '') // quita acentos
       .replace(/\s+/g, ' ')
       .trim();
   };
 
-  // Mapea nivel a columna: 2 -> B (Alto), 3 -> C (Bueno), 4 -> D (Min)
+  // Detección robusta del nivel -> devuelve 2|3|4 (columnas B,C,D) o null
   const nivelToCol = (nivel) => {
     if (nivel === null || nivel === undefined) return null;
     const s = normalizeText(String(nivel));
+
     if (/^\d+$/.test(s)) {
       if (s === '1') return 2;
       if (s === '2') return 3;
       if (s === '3') return 4;
     }
+
     if (/\balto\b/.test(s) || s === 'a') return 2;
     if (/\bbueno\b/.test(s) || /\bcasi\b/.test(s) || s === 'b') return 3;
-    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
+    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || /\bminimo necesario\b/.test(s) || /\bmin necesario\b/.test(s) || /\bocasiones\b/.test(s) || /\ben ocasiones\b/.test(s) || s === 'c') return 4;
+
     return null;
   };
 
-  // parse array / JSON-string / newline separated -> array
+  // parse array / JSON-string / newline separated
   const parseToArray = (raw) => {
     if (raw === null || raw === undefined) return [];
     if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -106,7 +109,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
           if (Array.isArray(parsed)) return parsed.filter(Boolean);
           return [parsed];
         } catch (e) {
-          // fallback to newline split
+          // fallback
         }
       }
       return s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -114,6 +117,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return [raw];
   };
 
+  // compact helpers
   const addSectionTitle = (text) => {
     const r = worksheet.addRow([]);
     worksheet.mergeCells(`A${r.number}:E${r.number}`);
@@ -126,7 +130,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(r.number).height = 18;
   };
 
-  // Campo normal (label en A, valor en E)
   const addField = (label, value) => {
     const safe = (value === undefined || value === null || value === '') ? 'N/A' : value;
     const r = worksheet.addRow([label, '', '', '', safe]);
@@ -135,23 +138,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.border = THIN_BORDER;
       cell.alignment = { wrapText: true, vertical: 'top' };
-    });
-    r.height = COMPACT_ROW_HEIGHT;
-  };
-
-  // Campo cuyo valor ocupa columnas B:E (merge)
-  const addFieldSpanRight = (label, value) => {
-    const safe = (value === undefined || value === null || value === '') ? 'N/A' : value;
-    const r = worksheet.addRow([label, safe, '', '', '']);
-    // merge columns B:E into B
-    worksheet.mergeCells(`B${r.number}:E${r.number}`);
-    r.getCell(1).font = { bold: true };
-    const mergedCell = r.getCell(2);
-    mergedCell.value = safe;
-    [r.getCell(1), mergedCell].forEach(cell => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      cell.border = THIN_BORDER;
-      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     });
     r.height = COMPACT_ROW_HEIGHT;
   };
@@ -178,17 +164,19 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   titleCell.border = THIN_BORDER;
   worksheet.getRow(1).height = 18;
+
   worksheet.addRow([]).height = 4;
 
   // ---------------- INFORMACIÓN GENERAL ----------------
   addSectionTitle('INFORMACIÓN GENERAL');
+
   addField('Nombre del cargo', formData.nombrecargo || formData.nombreCargo);
   addField('Área', formData.areageneral || formData.area || formData.areaGeneral);
   addField('Departamento', formData.departamento);
   addField('Proceso al que pertenece', formData.proceso);
   addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
-  // POBLACIÓN FOCALIZADA: mostrar solo las seleccionadas o 'Ninguna'
+  // POBLACIÓN FOCALIZADA: mostrar en la misma fila solo las opciones seleccionadas o 'Ninguna'
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
   const poblacionArr = parseToArray(poblacionRaw).map(x => normalizeText(x));
@@ -210,6 +198,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   // ---------------- DESCRIPCIÓN DEL CARGO ----------------
   addSectionTitle('DESCRIPCIÓN DEL CARGO');
+
   addField('Misión del cargo (Necesidad real del cargo)', formData.misioncargo || formData.misionDelCargo || formData.mision);
   addField('Conocimientos técnicos o específicos', formData.conocimientos || formData.conocimientosTecnicos || formData.conocimientosTecnicosEspecificos);
   addField('Cursos o certificaciones', formData.cursoscertificaciones || formData.cursosCertificaciones || 'N/A');
@@ -263,6 +252,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(headerRow.number).height = HEADER_ROW_HEIGHT;
   };
 
+  // escribe filas de competencias y marca X en la columna correcta
   const writeCompetencyRows = (rawList) => {
     const parsed = parseToArray(rawList);
     const normalized = parsed.map(item => {
@@ -306,16 +296,18 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.addRow([]).height = 6;
   };
 
-  // Competencias culturales y cargo
+  // Competencias culturales
   writeCompetencyBlockHeader('COMPETENCIAS\nCULTURALES');
   writeCompetencyRows(formData.competencias_culturales || formData.competenciasCulturales || []);
 
+  // Competencias del cargo
   writeCompetencyBlockHeader('COMPETENCIAS\nCARGO');
   writeCompetencyRows(formData.competencias_cargo || formData.competenciasCargo || formData.competencias || []);
 
   worksheet.addRow([]).height = 6;
 
   // ---------------- RESPONSABILIDADES ----------------
+
   const rawResp = formData.responsabilidades || formData.responsabilidadesList || formData.responsabilidadesArray || [];
   const parsedResp = parseToArray(rawResp);
   const normResp = parsedResp.map(r => {
@@ -361,125 +353,125 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // ---------------- COMPLEMENTARIO ----------------
+
+   // ---------------- COMPLEMENTARIO (layout especifico para imagen) ----------------
   addSectionTitle('COMPLEMENTARIO');
 
-  // ---- Plan de Entrenamiento: sin títulos en las 4 columnas, solo contenido
-  const planRaw = formData.plan_entrenamiento || formData.planEntrenamiento || formData.plan_de_entrenamiento || formData.complementario || null;
+  // Helper específico para fila: izquierda A:C (etiqueta), D columna separadora, E contenido/detalle
+  const addComplementSplitRow = (leftLabel, rightValue, opts = {}) => {
+    const r = worksheet.addRow([]);
+    const rn = r.number;
 
-  const extractPlanColumns = (raw) => {
-    const emptyCols = ['', '', '', ''];
-    if (!raw) return emptyCols;
-    if (typeof raw === 'object' && !Array.isArray(raw)) {
-      return [
-        raw.induccion || raw.induccionOrganizacional || raw.induccion_organizacional || raw.col1 || raw.induction || '',
-        raw.supervision || raw.supervisionPuntoVenta || raw.supervision_pv || raw.col2 || '',
-        raw.analisis || raw.analisisComercial || raw.analisis_comercial || raw.col3 || '',
-        raw.seguridad || raw.seguridadSalud || raw.seguridad_y_salud || raw.col4 || ''
-      ].map(v => (v === null || v === undefined ? '' : String(v)));
-    }
-    if (typeof raw === 'string') {
-      const s = raw.trim();
-      if (!s) return emptyCols;
-      if (s.startsWith('[') || s.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(s);
-          return extractPlanColumns(parsed);
-        } catch (e) { /* fallback */ }
-      }
-      // accept separators '||' or '|' if used
-      if (s.includes('||')) {
-        const parts = s.split('||').map(x => x.trim());
-        return [parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||''];
-      }
-      if (s.includes('|')) {
-        const parts = s.split('|').map(x => x.trim());
-        return [parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||''];
-      }
-      const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) return emptyCols;
-      if (lines.length <= 4) {
-        const cols = ['', '', '', ''];
-        for (let i = 0; i < lines.length && i < 4; i++) cols[i] = lines[i];
-        return cols;
-      }
-      // distribute lines round-robin when many lines
-      const groups = [[], [], [], []];
-      lines.forEach((ln, idx) => groups[idx % 4].push(ln));
-      return groups.map(g => g.join('\n'));
-    }
-    if (Array.isArray(raw)) {
-      const cols = ['', '', '', ''];
-      for (let i = 0; i < Math.min(4, raw.length); i++) cols[i] = raw[i] == null ? '' : String(raw[i]);
-      return cols;
-    }
-    return String(raw).split(/\r?\n/).slice(0,4).concat(['', '', '', '']).slice(0,4);
+    // Merges
+    worksheet.mergeCells(`A${rn}:C${rn}`); // etiqueta grande
+    worksheet.mergeCells(`D${rn}:D${rn}`); // columna separadora (visual)
+    worksheet.mergeCells(`E${rn}:E${rn}`); // contenido / detalle
+
+    const leftCell = worksheet.getCell(`A${rn}`);
+    const midCell = worksheet.getCell(`D${rn}`);
+    const rightCell = worksheet.getCell(`E${rn}`);
+
+    // Values
+    leftCell.value = leftLabel || '';
+    rightCell.value = (rightValue === undefined || rightValue === null || rightValue === '') ? (opts.emptyPlaceholder || 'N/A') : rightValue;
+
+    // Styles
+    leftCell.font = { name: 'Arial', bold: true };
+    leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+    midCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
+
+    [leftCell, midCell, rightCell].forEach(cell => {
+      cell.border = THIN_BORDER;
+      cell.alignment = { wrapText: true, vertical: 'top' };
+      cell.font = cell.font || { name: 'Arial' };
+    });
+
+    // Ajuste de alto para mejor legibilidad
+    worksheet.getRow(rn).height = opts.height || 30;
   };
 
-  const [planCol1, planCol2, planCol3, planCol4] = extractPlanColumns(planRaw);
+  // Helper para fila con subtítulo a la derecha: etiqueta pequeña (A:B) y subtítulo centrado (C:E)
+  const addComplementSubtitleRow = (leftLabel, subtitleText, opts = {}) => {
+    const r = worksheet.addRow([]);
+    const rn = r.number;
 
-  // left merged label + empty header row (no titles in columns)
-  const planTop = worksheet.addRow([]);
-  const planHeader = worksheet.addRow(['', '', '', '', '']); // sin texto en columnas
-  worksheet.mergeCells(`A${planTop.number}:A${planHeader.number}`);
-  const leftPlanCell = worksheet.getCell(`A${planTop.number}`);
-  leftPlanCell.value = 'Plan de entrenamiento (Inducción y Acompañamiento - Primeros 90 días)';
-  leftPlanCell.font = { name: 'Arial', bold: true };
-  leftPlanCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LEFT_GRAY } };
-  leftPlanCell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
-  leftPlanCell.border = THIN_BORDER;
+    worksheet.mergeCells(`A${rn}:B${rn}`); // etiqueta pequeña
+    worksheet.mergeCells(`C${rn}:E${rn}`); // subtítulo o texto grande
 
-  // style header empty cells B-E (borde/gris para que se vea estructura)
-  planHeader.eachCell((cell, colNumber) => {
-    if (colNumber === 1) return;
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
-    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
-    cell.border = THIN_BORDER;
-  });
-  worksheet.getRow(planTop.number).height = 18;
-  worksheet.getRow(planHeader.number).height = 18;
+    const leftCell = worksheet.getCell(`A${rn}`);
+    const rightCell = worksheet.getCell(`C${rn}`);
 
-  // split by newline into lines per column
-  const colLines = [
-    (planCol1 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
-    (planCol2 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
-    (planCol3 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
-    (planCol4 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
-  ];
-  const maxLines = Math.max(1, colLines[0].length, colLines[1].length, colLines[2].length, colLines[3].length);
+    leftCell.value = leftLabel || '';
+    rightCell.value = (subtitleText === undefined || subtitleText === null || subtitleText === '') ? (opts.emptyPlaceholder || '') : subtitleText;
 
-  for (let i = 0; i < maxLines; i++) {
-    const r = worksheet.addRow([
-      '',
-      colLines[0][i] || '',
-      colLines[1][i] || '',
-      colLines[2][i] || '',
-      colLines[3][i] || ''
-    ]);
-    [1,2,3,4,5].forEach(ci => {
-      const cell = r.getCell(ci);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    leftCell.font = { name: 'Arial', bold: true };
+    leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+    [leftCell, rightCell].forEach(cell => {
       cell.border = THIN_BORDER;
-      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
     });
-    // ajustar altura según cantidad de líneas en la fila
-    r.height = COMPACT_ROW_HEIGHT * Math.max(
-      1,
-      ( (r.getCell(2).value || '').toString().split('\n').length ),
-      ( (r.getCell(3).value || '').toString().split('\n').length ),
-      ( (r.getCell(4).value || '').toString().split('\n').length ),
-      ( (r.getCell(5).value || '').toString().split('\n').length )
-    );
-  }
 
+    worksheet.getRow(rn).height = opts.height || 20;
+  };
+
+  // Helper para fila ancha (A:D) + columna E separada (si quieres que el texto ocupe todo el ancho)
+  const addComplementWideRow = (leftLabel, wideText, opts = {}) => {
+    const r = worksheet.addRow([]);
+    const rn = r.number;
+
+    worksheet.mergeCells(`A${rn}:D${rn}`); // etiqueta + espacio grande
+    worksheet.mergeCells(`E${rn}:E${rn}`); // columna lateral para notas/observaciones
+
+    const leftCell = worksheet.getCell(`A${rn}`);
+    const rightCell = worksheet.getCell(`E${rn}`);
+
+    leftCell.value = leftLabel || '';
+    rightCell.value = (wideText === undefined || wideText === null || wideText === '') ? (opts.emptyPlaceholder || 'N/A') : wideText;
+
+    leftCell.font = { name: 'Arial', bold: true };
+    leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+    rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+    [leftCell, rightCell].forEach(cell => {
+      cell.border = THIN_BORDER;
+      cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+
+    worksheet.getRow(rn).height = opts.height || 28;
+  };
+
+  // Ahora añadimos las filas con los datos (usa campos del formData si existen)
+  addComplementSplitRow(
+    'Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)',
+    formData.plan_entrenamiento || formData.planEntrenamiento || ''
+  );
+
+  // Fila con subtítulo centrado tipo imagen: Plan de Capacitación Continua + subtítulo a la derecha
+  addComplementSubtitleRow(
+    'Plan de Capacitación Continua',
+    formData.plan_capacitacion_continua_subtitulo ||
+      formData.planCapacitacionContinuaSubtitulo ||
+      'Desarrollo y Actualización – Semestral/Anual'
+  );
+
+  // Plan Carrera con "Ruta de Crecimiento Interno" como subtítulo/columna derecha
+  addComplementSplitRow(
+    'Plan Carrera',
+    formData.plan_carrera_detalle || formData.planCarreraDetalle || 'Ruta de Crecimiento Interno'
+  );
+
+  // Competencias para desarrollar en el ingreso -> fila ancha para texto largo
+  addComplementWideRow(
+    'Competencias para desarrollar en el ingreso',
+    formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso || ''
+  );
+
+  // espacio final
   worksheet.addRow([]).height = 6;
 
-  // ---- Después del plan: Plan de Capacitación Continua, Plan Carrera, Competencias para desarrollar (merge B:E)
-  addFieldSpanRight('Plan de Capacitación Continua', formData.plan_capacitacion_continua || formData.planCapacitacionContinua);
-  addFieldSpanRight('Plan de Carrera', formData.plan_carrera || formData.planCarrera);
-  addFieldSpanRight('Competencias para desarrollar en el ingreso', formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso);
-
-  worksheet.addRow([]).height = 6;
 
   // asegurar wrapText/alineación global
   worksheet.eachRow(row => {
@@ -488,6 +480,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     });
   });
 
+  // generar buffer y devolver attachment
   const buffer = await workbook.xlsx.writeBuffer();
   return {
     filename: `Solicitud_${workflow_id}.xlsx`,
