@@ -85,6 +85,20 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       .trim();
   };
 
+  const nivelToCol = (nivel) => {
+    if (nivel === null || nivel === undefined) return null;
+    const s = normalizeText(String(nivel));
+    if (/^\d+$/.test(s)) {
+      if (s === '1') return 2;
+      if (s === '2') return 3;
+      if (s === '3') return 4;
+    }
+    if (/\balto\b/.test(s) || s === 'a') return 2;
+    if (/\bbueno\b/.test(s) || /\bcasi\b/.test(s) || s === 'b') return 3;
+    if (/\bmin\b/.test(s) || /\bminimo\b/.test(s) || s === 'c') return 4;
+    return null;
+  };
+
   const parseToArray = (raw) => {
     if (raw === null || raw === undefined) return [];
     if (Array.isArray(raw)) return raw.filter(Boolean);
