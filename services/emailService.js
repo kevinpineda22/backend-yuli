@@ -366,21 +366,37 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // ---------------- COMPLEMENTARIO (ajustado para mantener simetría) ----------------
-  addSectionTitle('COMPLEMENTARIO');
+  // ---------------- COMPLEMENTARIO (ajustado: sin numeración, márgenes iguales, auto-altura) ----------------
+  const compHeaderRow = worksheet.addRow([]);
+  worksheet.mergeCells(`A${compHeaderRow.number}:H${compHeaderRow.number}`);
+  const compHdrCell = worksheet.getCell(`A${compHeaderRow.number}`);
+  compHdrCell.value = 'COMPLEMENTARIO';
+  compHdrCell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+  compHdrCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
+  compHdrCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  compHdrCell.border = THIN_BORDER;
+  worksheet.getRow(compHeaderRow.number).height = 18;
 
-  // Usa addField para cada campo, manteniendo la simetría
-  const planEntrenamiento = formatValueForExcel(formData.plan_entrenamiento || formData.planEntrenamiento);
-  addField('Plan de Entrenamiento', planEntrenamiento);
+  // Fill complementario with parsed data (no numeración, margins consistent)
+  const entrenamientoItems = parseToArray(formData.plan_entrenamiento || formData.planEntrenamiento || []);
+  const rn_ent = writeLabelRow('Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)');
+  if (entrenamientoItems.length > 0) writeItemsHorizontal(rn_ent, entrenamientoItems);
+  else writeSingleBox(rn_ent, 'N/A');
 
-  const planCapacitacion = formatValueForExcel(formData.plan_capacitacion_continua || formData.planCapacitacionContinua);
-  addField('Plan de Capacitación Continua', planCapacitacion);
+  const capacitacionItems = parseToArray(formData.plan_capacitacion_continua || formData.planCapacitacionContinua || []);
+  const rn_cap = writeLabelRow('Plan de Capacitación Continua');
+  if (capacitacionItems.length > 0) writeItemsHorizontal(rn_cap, capacitacionItems);
+  else writeSingleBox(rn_cap, 'N/A');
 
-  const planCarrera = formatValueForExcel(formData.plan_carrera || formData.planCarrera);
-  addField('Plan Carrera', planCarrera);
+  const carreraItems = parseToArray(formData.plan_carrera || formData.planCarrera || []);
+  const rn_car = writeLabelRow('Plan Carrera');
+  if (carreraItems.length > 0) writeSingleBox(rn_car, carreraItems.map((item, index) => `${index + 1}. ${item}`).join('\n'));
+  else writeSingleBox(rn_car, 'N/A');
 
-  const compIngreso = formatValueForExcel(formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso);
-  addField('Competencias para desarrollar en el ingreso', compIngreso);
+  const compIngresoItems = parseToArray(formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso || []);
+  const rn_comp = writeLabelRow('Competencias para desarrollar en el ingreso');
+  if (compIngresoItems.length > 0) writeSingleBox(rn_comp, compIngresoItems.map((item, index) => `${index + 1}. ${item}`).join('\n'));
+  else writeSingleBox(rn_comp, 'N/A');
 
   worksheet.addRow([]).height = 6;
 
@@ -399,6 +415,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
+
 
 
 
