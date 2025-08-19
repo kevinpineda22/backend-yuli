@@ -54,18 +54,18 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     bottom: { style: 'thin' }, right: { style: 'thin' }
   };
 
-  // Columnas
+  // Columnas (A etiqueta | B | C | D | E contenido/definición)
   worksheet.columns = [
     { width: 36 }, // A
     { width: 18 }, // B
     { width: 18 }, // C
     { width: 18 }, // D
-    { width: 70 }  // E
+    { width: 72 }  // E
   ];
 
-  const COMPACT_ROW_HEIGHT = 14;
-  const HEADER_ROW_HEIGHT = 18;
-  const SMALL_HEADER_FONT_SIZE = 9;
+  const COMPACT_ROW_HEIGHT = 16;
+  const HEADER_ROW_HEIGHT = 42; // mayor para que A/B/C se vean bien
+  const SMALL_HEADER_FONT_SIZE = 10;
 
   // ---------------- Helpers ----------------
   const normalizeText = (s) => {
@@ -78,6 +78,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       .trim();
   };
 
+  // Mapea nivel a columna: 2 -> B (Alto), 3 -> C (Bueno), 4 -> D (Min)
   const nivelToCol = (nivel) => {
     if (nivel === null || nivel === undefined) return null;
     const s = normalizeText(String(nivel));
@@ -92,6 +93,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return null;
   };
 
+  // parse array / JSON-string / newline separated -> array
   const parseToArray = (raw) => {
     if (raw === null || raw === undefined) return [];
     if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -104,7 +106,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
           if (Array.isArray(parsed)) return parsed.filter(Boolean);
           return [parsed];
         } catch (e) {
-          // fallback
+          // fallback to newline split
         }
       }
       return s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -124,6 +126,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.getRow(r.number).height = 18;
   };
 
+  // Campo normal (label en A, valor en E)
   const addField = (label, value) => {
     const safe = (value === undefined || value === null || value === '') ? 'N/A' : value;
     const r = worksheet.addRow([label, '', '', '', safe]);
@@ -132,6 +135,23 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.border = THIN_BORDER;
       cell.alignment = { wrapText: true, vertical: 'top' };
+    });
+    r.height = COMPACT_ROW_HEIGHT;
+  };
+
+  // Campo cuyo valor ocupa columnas B:E (merge)
+  const addFieldSpanRight = (label, value) => {
+    const safe = (value === undefined || value === null || value === '') ? 'N/A' : value;
+    const r = worksheet.addRow([label, safe, '', '', '']);
+    // merge columns B:E into B
+    worksheet.mergeCells(`B${r.number}:E${r.number}`);
+    r.getCell(1).font = { bold: true };
+    const mergedCell = r.getCell(2);
+    mergedCell.value = safe;
+    [r.getCell(1), mergedCell].forEach(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      cell.border = THIN_BORDER;
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     });
     r.height = COMPACT_ROW_HEIGHT;
   };
@@ -149,7 +169,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
-  // ---------------- TÍTULO ----------------
+  // ---------------- TÍTULO PRINCIPAL ----------------
   worksheet.mergeCells('A1:E1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
@@ -158,19 +178,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   titleCell.border = THIN_BORDER;
   worksheet.getRow(1).height = 18;
-
   worksheet.addRow([]).height = 4;
 
   // ---------------- INFORMACIÓN GENERAL ----------------
   addSectionTitle('INFORMACIÓN GENERAL');
-
   addField('Nombre del cargo', formData.nombrecargo || formData.nombreCargo);
   addField('Área', formData.areageneral || formData.area || formData.areaGeneral);
   addField('Departamento', formData.departamento);
   addField('Proceso al que pertenece', formData.proceso);
   addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
-  // Población focalizada en la misma fila
+  // POBLACIÓN FOCALIZADA: mostrar solo las seleccionadas o 'Ninguna'
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
   const poblacionArr = parseToArray(poblacionRaw).map(x => normalizeText(x));
@@ -192,7 +210,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   // ---------------- DESCRIPCIÓN DEL CARGO ----------------
   addSectionTitle('DESCRIPCIÓN DEL CARGO');
-
   addField('Misión del cargo (Necesidad real del cargo)', formData.misioncargo || formData.misionDelCargo || formData.mision);
   addField('Conocimientos técnicos o específicos', formData.conocimientos || formData.conocimientosTecnicos || formData.conocimientosTecnicosEspecificos);
   addField('Cursos o certificaciones', formData.cursoscertificaciones || formData.cursosCertificaciones || 'N/A');
@@ -218,7 +235,13 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const writeCompetencyBlockHeader = (leftLabel) => {
     const topRow = worksheet.addRow([]);
-    const headerRow = worksheet.addRow(['', 'A\n(Alto)\n(1)\n(Siempre)', 'B\n(Bueno)\n(2)\n(Casi siempre)', 'C\n(Mín necesario)\n(3)\n(En ocasiones)', 'Definición']);
+    const headerRow = worksheet.addRow([
+      '',
+      'A\n(Alto)\n(1)\n(Siempre)',
+      'B\n(Bueno)\n(2)\n(Casi siempre)',
+      'C\n(Mín necesario)\n(3)\n(En ocasiones)',
+      'Definición'
+    ]);
 
     worksheet.mergeCells(`A${topRow.number}:A${headerRow.number}`);
     const leftCell = worksheet.getCell(`A${topRow.number}`);
@@ -266,7 +289,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
     normalized.forEach(c => {
       const nivelRaw = c.nivel !== undefined && c.nivel !== null ? String(c.nivel) : '';
-      const colIndex = nivelToCol(nivelRaw);
+      const colIndex = nivelToCol(nivelRaw); // 2|3|4 o null
       const rowArr = [c.competencia || '', '', '', '', c.definicion || ''];
       if (colIndex === 2) rowArr[1] = 'X';
       else if (colIndex === 3) rowArr[2] = 'X';
@@ -274,7 +297,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       const r = worksheet.addRow(rowArr);
       r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       r.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-      [2,3,4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
+      [2, 3, 4].forEach(ci => r.getCell(ci).alignment = { horizontal: 'center', vertical: 'top' });
       r.getCell(5).alignment = { wrapText: true, vertical: 'top' };
       r.eachCell({ includeEmpty: true }, cell => { cell.border = THIN_BORDER; });
       r.height = COMPACT_ROW_HEIGHT;
@@ -338,9 +361,10 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // ---------------- COMPLEMENTARIO (Plan de Entrenamiento sin títulos en columnas) ----------------
+  // ---------------- COMPLEMENTARIO ----------------
   addSectionTitle('COMPLEMENTARIO');
 
+  // ---- Plan de Entrenamiento: sin títulos en las 4 columnas, solo contenido
   const planRaw = formData.plan_entrenamiento || formData.planEntrenamiento || formData.plan_de_entrenamiento || formData.complementario || null;
 
   const extractPlanColumns = (raw) => {
@@ -361,10 +385,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
         try {
           const parsed = JSON.parse(s);
           return extractPlanColumns(parsed);
-        } catch (e) {
-          // fallback
-        }
+        } catch (e) { /* fallback */ }
       }
+      // accept separators '||' or '|' if used
       if (s.includes('||')) {
         const parts = s.split('||').map(x => x.trim());
         return [parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||''];
@@ -380,6 +403,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
         for (let i = 0; i < lines.length && i < 4; i++) cols[i] = lines[i];
         return cols;
       }
+      // distribute lines round-robin when many lines
       const groups = [[], [], [], []];
       lines.forEach((ln, idx) => groups[idx % 4].push(ln));
       return groups.map(g => g.join('\n'));
@@ -394,9 +418,9 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   const [planCol1, planCol2, planCol3, planCol4] = extractPlanColumns(planRaw);
 
-  // Left merged label for the plan
+  // left merged label + empty header row (no titles in columns)
   const planTop = worksheet.addRow([]);
-  const planHeader = worksheet.addRow(['', '', '', '', '']); // <-- sin títulos en las columnas
+  const planHeader = worksheet.addRow(['', '', '', '', '']); // sin texto en columnas
   worksheet.mergeCells(`A${planTop.number}:A${planHeader.number}`);
   const leftPlanCell = worksheet.getCell(`A${planTop.number}`);
   leftPlanCell.value = 'Plan de entrenamiento (Inducción y Acompañamiento - Primeros 90 días)';
@@ -405,7 +429,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   leftPlanCell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
   leftPlanCell.border = THIN_BORDER;
 
-  // Style header empty cells (solo para que tengan borde/gris, sin texto)
+  // style header empty cells B-E (borde/gris para que se vea estructura)
   planHeader.eachCell((cell, colNumber) => {
     if (colNumber === 1) return;
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_GRAY } };
@@ -415,7 +439,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   worksheet.getRow(planTop.number).height = 18;
   worksheet.getRow(planHeader.number).height = 18;
 
-  // Preparar arrays por linea
+  // split by newline into lines per column
   const colLines = [
     (planCol1 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
     (planCol2 || '').toString().split(/\r?\n/).map(l => l.trim()).filter(Boolean),
@@ -425,25 +449,39 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   const maxLines = Math.max(1, colLines[0].length, colLines[1].length, colLines[2].length, colLines[3].length);
 
   for (let i = 0; i < maxLines; i++) {
-    const r = worksheet.addRow(['', colLines[0][i] || '', colLines[1][i] || '', colLines[2][i] || '', colLines[3][i] || '']);
+    const r = worksheet.addRow([
+      '',
+      colLines[0][i] || '',
+      colLines[1][i] || '',
+      colLines[2][i] || '',
+      colLines[3][i] || ''
+    ]);
     [1,2,3,4,5].forEach(ci => {
       const cell = r.getCell(ci);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.border = THIN_BORDER;
-      cell.alignment = { wrapText: true, vertical: 'top', horizontal: (ci === 1 ? 'left' : 'left') };
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     });
+    // ajustar altura según cantidad de líneas en la fila
     r.height = COMPACT_ROW_HEIGHT * Math.max(
       1,
-      ((r.getCell(2).value || '').toString().split('\n').length),
-      ((r.getCell(3).value || '').toString().split('\n').length),
-      ((r.getCell(4).value || '').toString().split('\n').length),
-      ((r.getCell(5).value || '').toString().split('\n').length)
+      ( (r.getCell(2).value || '').toString().split('\n').length ),
+      ( (r.getCell(3).value || '').toString().split('\n').length ),
+      ( (r.getCell(4).value || '').toString().split('\n').length ),
+      ( (r.getCell(5).value || '').toString().split('\n').length )
     );
   }
 
   worksheet.addRow([]).height = 6;
 
-  // wrapText global
+  // ---- Después del plan: Plan de Capacitación Continua, Plan Carrera, Competencias para desarrollar (merge B:E)
+  addFieldSpanRight('Plan de Capacitación Continua', formData.plan_capacitacion_continua || formData.planCapacitacionContinua);
+  addFieldSpanRight('Plan de Carrera', formData.plan_carrera || formData.planCarrera);
+  addFieldSpanRight('Competencias para desarrollar en el ingreso', formData.competencias_desarrollo_ingreso || formData.competenciasDesarrolloIngreso);
+
+  worksheet.addRow([]).height = 6;
+
+  // asegurar wrapText/alineación global
   worksheet.eachRow(row => {
     row.eachCell({ includeEmpty: true }, cell => {
       if (!cell.alignment) cell.alignment = { wrapText: true, vertical: 'top' };
@@ -457,6 +495,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
+
 
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
