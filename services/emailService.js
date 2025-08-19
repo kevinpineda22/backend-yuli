@@ -131,7 +131,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     worksheet.mergeCells(`A${r.number}:H${r.number}`);
     const c = worksheet.getCell(`A${r.number}`);
     c.value = text;
-    c.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+    c.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
     c.alignment = { horizontal: 'center', vertical: 'middle' };
     c.border = THIN_BORDER;
@@ -302,7 +302,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   worksheet.mergeCells(`A${compTitleRow.number}:H${compTitleRow.number}`);
   const compTitleCell = worksheet.getCell(`A${compTitleRow.number}`);
   compTitleCell.value = 'COMPETENCIAS REQUERIDAS';
-  compTitleCell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+  compTitleCell.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
   compTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
   compTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   compTitleCell.border = THIN_BORDER;
@@ -420,7 +420,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       worksheet.mergeCells(`A${hr.number}:H${hr.number}`);
       const hc = worksheet.getCell(`A${hr.number}`);
       hc.value = `RESPONSABILIDAD ${idx + 1}`;
-      hc.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+      hc.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
       hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
       hc.alignment = { horizontal: 'center', vertical: 'middle' };
       hc.border = THIN_BORDER;
@@ -448,7 +448,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   worksheet.mergeCells(`A${compHeaderRow.number}:H${compHeaderRow.number}`);
   const compHdrCell = worksheet.getCell(`A${compHeaderRow.number}`);
   compHdrCell.value = 'COMPLEMENTARIO';
-  compHdrCell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+  compHdrCell.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
   compHdrCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
   compHdrCell.alignment = { horizontal: 'center', vertical: 'middle' };
   compHdrCell.border = THIN_BORDER;
