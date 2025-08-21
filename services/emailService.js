@@ -443,6 +443,23 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
+   // ---------------- NUEVOS CAMPOS: SST ----------------
+    addSectionTitle('ANÁLISIS DE SEGURIDAD Y SALUD EN EL TRABAJO');
+
+    const rn_indicadores = writeLabelRow('Indicadores de Gestión');
+    writeSingleBox(rn_indicadores, formData.indicadores_gestion || formData.indicadoresGestion);
+    
+    const rn_requisitos = writeLabelRow('Requisitos Físicos');
+    writeSingleBox(rn_requisitos, formData.requisitos_fisicos || formData.requisitosFisicos);
+
+    const rn_riesgos_org = writeLabelRow('Riesgos y Obligaciones SST Organizacionales');
+    writeSingleBox(rn_riesgos_org, formData.riesgos_obligaciones_sst_organizacionales || formData.riesgosObligacionesOrg);
+
+    const rn_riesgos_esp = writeLabelRow('Riesgos y Obligaciones SST Específicos');
+    writeSingleBox(rn_riesgos_esp, formData.riesgos_obligaciones_sst_especificos || formData.riesgosObligacionesEsp);
+
+    worksheet.addRow([]).height = 6;
+
   // ---------------- COMPLEMENTARIO (ajustado: sin numeración, márgenes iguales, auto-altura) ----------------
   const compHeaderRow = worksheet.addRow([]);
   worksheet.mergeCells(`A${compHeaderRow.number}:H${compHeaderRow.number}`);
