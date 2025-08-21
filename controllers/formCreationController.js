@@ -37,6 +37,10 @@ const fieldMapping = {
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
+    indicadores_gestion: 'indicadores_gestion',
+    requisitos_fisicos: 'requisitos_fisicos',
+    riesgos_obligaciones_sst_organizacionales: 'riesgos_obligaciones_sst_organizacionales',
+    riesgos_obligaciones_sst_especificos: 'riesgos_obligaciones_sst_especificos',
     planEntrenamiento: 'plan_entrenamiento',
     planCapacitacionContinua: 'plan_capacitacion_continua',
     planCarrera: 'plan_carrera',
@@ -46,7 +50,10 @@ const fieldMapping = {
 // Función auxiliar para parsear los campos JSON del body a objetos de JS
 const parseJSONFields = (data) => {
     const newData = { ...data };
-    const jsonFields = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
+    const jsonFields = [
+        'poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 
+        'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'
+    ];
     try {
         jsonFields.forEach(field => {
             if (newData[field] && typeof newData[field] === 'string') {
@@ -69,13 +76,18 @@ const createEmailData = (body, data) => {
         ...data,
         ...parsedData,
         // Usar los nombres de las columnas del backend para las funciones de correo
+        poblacionfocalizada: parsedData.poblacionFocalizada,
         competencias_culturales: parsedData.competenciasCulturales,
         competencias_cargo: parsedData.competenciasCargo,
         responsabilidades: parsedData.responsabilidades,
+        indicadores_gestion: body.indicadoresGestion,
+        requisitos_fisicos: body.requisitosFisicos,
+        riesgos_obligaciones_sst_organizacionales: body.riesgosObligacionesOrg,
+        riesgos_obligaciones_sst_especificos: body.riesgosObligacionesEsp,
         plan_entrenamiento: parsedData.planEntrenamiento,
         plan_capacitacion_continua: parsedData.planCapacitacionContinua,
-        plan_carrera: parsedData.planCarrera,
-        competencias_desarrollo_ingreso: parsedData.competenciasDesarrolloIngreso
+        plan_carrera: body.planCarrera,
+        competencias_desarrollo_ingreso: body.competenciasDesarrolloIngreso
     };
 };
 
@@ -88,6 +100,7 @@ export const crearFormulario = async (req, res) => {
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
             competenciasCulturales, competenciasCargo, responsabilidades,
+            indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
 
@@ -99,26 +112,12 @@ export const crearFormulario = async (req, res) => {
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
-            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
-        }
-
-        // Validar que los campos JSON sean arrays válidos
-        try {
-            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
-            jsonFields.forEach((field, index) => {
-                if (field && !Array.isArray(JSON.parse(field))) {
-                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
-                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
-                }
-            });
-        } catch (e) {
-            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
@@ -180,6 +179,10 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
+            [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
             [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
@@ -207,7 +210,6 @@ export const crearFormulario = async (req, res) => {
         const workflow_id = data.id;
         await supabase.from('yuli').update({ workflow_id }).eq('id', workflow_id);
 
-        // CREAR OBJETO CONSOLIDADO Y PARSEADO PARA EL EMAIL
         const emailFormData = createEmailData(req.body, data);
 
         const emailRecipient = isConstruahorro === 'true' ? director : area;
@@ -236,6 +238,7 @@ export const reenviarFormulario = async (req, res) => {
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
             competenciasCulturales, competenciasCargo, responsabilidades,
+            indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
@@ -246,26 +249,12 @@ export const reenviarFormulario = async (req, res) => {
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
-            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
-        }
-
-        // Validar que los campos JSON sean arrays válidos
-        try {
-            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
-            jsonFields.forEach((field, index) => {
-                if (field && !Array.isArray(JSON.parse(field))) {
-                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
-                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
-                }
-            });
-        } catch (e) {
-            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
@@ -327,6 +316,10 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
+            [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
             [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
@@ -353,7 +346,6 @@ export const reenviarFormulario = async (req, res) => {
 
         const workflow_id = updated.workflow_id;
         
-        // CREAR OBJETO CONSOLIDADO Y PARSEADO PARA EL EMAIL
         const emailFormData = createEmailData(req.body, updated);
 
         const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
@@ -382,6 +374,7 @@ export const actualizarFormulario = async (req, res) => {
             tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
             idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
             competenciasCulturales, competenciasCargo, responsabilidades,
+            indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
@@ -392,26 +385,12 @@ export const actualizarFormulario = async (req, res) => {
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
-            // No se incluyen planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso como obligatorios
         };
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
-        }
-
-        // Validar que los campos JSON sean arrays válidos
-        try {
-            const jsonFields = [competenciasCulturales, competenciasCargo, responsabilidades, planEntrenamiento, planCapacitacionContinua];
-            jsonFields.forEach((field, index) => {
-                if (field && !Array.isArray(JSON.parse(field))) {
-                    const fieldNames = ['competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'];
-                    throw new Error(`El campo ${fieldNames[index]} debe ser un array`);
-                }
-            });
-        } catch (e) {
-            return res.status(400).json({ error: `Formato inválido: ${e.message}` });
         }
 
         if (!isConstruahorro && !area) {
@@ -473,6 +452,10 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.competenciasCulturales]: competenciasCulturales,
             [fieldMapping.competenciasCargo]: competenciasCargo,
             [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
+            [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
             [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
