@@ -535,6 +535,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 };
 
 
+// Helper para descargar imagen desde URL
+const fetchImageBuffer = async (url) => {
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    return Buffer.from(response.data);
+  } catch (err) {
+    return null;
+  }
+};
+
+
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   return `
