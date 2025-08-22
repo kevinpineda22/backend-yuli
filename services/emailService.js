@@ -1,7 +1,5 @@
 import nodemailer from 'nodemailer';
 import ExcelJS from 'exceljs';
-import axios from 'axios';
-import path from 'path';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -263,29 +261,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Área', formData.areageneral || formData.area || formData.areaGeneral);
   addField('Departamento', formData.departamento);
   addField('Proceso al que pertenece', formData.proceso);
-
-  // --- Imagen en estructura organizacional ---
-  const estructuraUrl = formData.estructuraorganizacional || formData.estructuraOrganizacional;
-  let imagenInsertada = false;
-  if (estructuraUrl && typeof estructuraUrl === 'string') {
-    const ext = path.extname(estructuraUrl).toLowerCase();
-    if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
-      const imgBuffer = await fetchImageBuffer(estructuraUrl);
-      if (imgBuffer) {
-        // Insertar imagen en la hoja
-        const imageId = workbook.addImage({ buffer: imgBuffer, extension: ext.replace('.', '') });
-        worksheet.addImage(imageId, {
-          tl: { col: 4.2, row: worksheet.lastRow.number + 0.2 },
-          ext: { width: 180, height: 120 }
-        });
-        addField('Estructura organizacional', 'Imagen insertada abajo');
-        imagenInsertada = true;
-      }
-    }
-  }
-  if (!imagenInsertada) {
-    addHyperlink('Estructura organizacional', estructuraUrl);
-  }
+  addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
@@ -532,17 +508,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     content: buffer,
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
-};
-
-
-// Helper para descargar imagen desde URL
-const fetchImageBuffer = async (url) => {
-  try {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    return Buffer.from(response.data);
-  } catch (err) {
-    return null;
-  }
 };
 
 
