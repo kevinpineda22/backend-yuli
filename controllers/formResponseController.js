@@ -67,7 +67,7 @@ export const respuestaArea = async (req, res) => {
     res.json({ message: "Decisión del área registrada y correo enviado al director" });
   } catch (err) {
     console.error("Error en respuestaArea:", err);
-    res.status(500).json({ error: err.message || "Error interno del servidor" });
+    res.status(500).json({ error: err.message || "Error interno del servidor" }); 
   }
 };
 
