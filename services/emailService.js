@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import ExcelJS from 'exceljs';
+import axios from 'axios';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -29,11 +30,9 @@ export const sendEmail = async (to, subject, htmlContent, attachments = []) => {
 
 const formatValueForExcel = (value) => {
   if (Array.isArray(value)) {
-    // Si es un array de objetos (competencias)
     if (typeof value[0] === 'object' && value[0].hasOwnProperty('competencia')) {
       return value.map(c => `${c.competencia} (${c.nivel}) - ${c.definicion}`).join('\n');
     }
-    // Si es un array simple (responsabilidades)
     return value.join('\n');
   }
   return value || 'N/A';
@@ -66,13 +65,14 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     { width: 14 }, // H: item 4
   ];
 
-  const MAX_ITEM_COL_WIDTH = 18;    // límite ancho columnas de items (para B)
-  const CHAR_PER_COL_UNIT = 1.1;    // usado para estimar anchura/lineas (ajustado para menos ancho)
+  const MAX_ITEM_COL_WIDTH = 18;
+  const CHAR_PER_COL_UNIT = 1.1;
   const LINE_HEIGHT = 14;
-
   const COMPACT_ROW_HEIGHT = 14;
   const HEADER_ROW_HEIGHT = 34;
   const SMALL_HEADER_FONT_SIZE = 9;
+  const IMAGE_HEIGHT = 200;
+  const IMAGE_WIDTH = 300;
 
   // ---------------- Helpers ----------------
   const normalizeText = (s) => {
@@ -117,7 +117,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return [raw];
   };
 
-  // Estima líneas que ocupará un texto en una columna con ancho `colWidth`
   const estimateLinesForText = (text, colWidth) => {
     if (!text) return 1;
     const charsPerLine = Math.max(12, Math.floor((colWidth || 28) * CHAR_PER_COL_UNIT));
@@ -153,21 +152,54 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.height = COMPACT_ROW_HEIGHT;
   };
 
-  const addHyperlink = (label, url) => {
-    if (!url) { addField(label, 'N/A'); return; }
+  const addHyperlink = async (label, url) => {
     const r = worksheet.addRow([label, '', '', '', 'Ver documento', '', '', '']);
     worksheet.mergeCells(`E${r.number}:H${r.number}`);
-    r.getCell(5).value = { text: 'Ver documento', hyperlink: String(url) };
-    r.getCell(5).font = { name: 'Arial', color: { argb: 'FF0563C1' }, underline: true };
-    [r.getCell(1), r.getCell(5)].forEach(cell => {
+    const labelCell = r.getCell(1);
+    const valueCell = r.getCell(5);
+
+    if (url) {
+      valueCell.value = { text: 'Ver documento', hyperlink: String(url) };
+      valueCell.font = { name: 'Arial', color: { argb: 'FF0563C1' }, underline: true };
+    } else {
+      valueCell.value = 'N/A';
+    }
+
+    if (url) {
+      try {
+        const extension = url.split('.').pop().toLowerCase();
+        const supportedExtensions = ['png', 'jpg', 'jpeg'];
+        if (!supportedExtensions.includes(extension)) {
+          throw new Error('Formato de imagen no soportado (solo PNG o JPG/JPEG)');
+        }
+
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data);
+
+        const imageId = workbook.addImage({
+          buffer: buffer,
+          extension: extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : 'png',
+        });
+
+        worksheet.addImage(imageId, {
+          tl: { col: 4, row: r.number - 1 },
+          ext: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
+        });
+
+        worksheet.getRow(r.number).height = IMAGE_HEIGHT;
+      } catch (error) {
+        console.error('Error al descargar o insertar la imagen:', error.message);
+        valueCell.value = url ? 'Error al cargar la imagen (Ver documento)' : 'N/A';
+      }
+    }
+
+    [labelCell, valueCell].forEach(cell => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       cell.border = THIN_BORDER;
       cell.alignment = { wrapText: true, vertical: 'top' };
     });
-    r.height = COMPACT_ROW_HEIGHT;
   };
 
-  // label writer (A:C merged) - matches addField left cell style
   const writeLabelRow = (labelText) => {
     const r = worksheet.addRow([]);
     const rn = r.number;
@@ -186,28 +218,24 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     return rn;
   };
 
-  // write items horizontally (E..H) WITHOUT numeración, auto-ajustando altura y limitando ancho
   const writeItemsHorizontal = (startRow, items) => {
-    const maxCols = 4; // E,F,G,H
+    const maxCols = 4;
     let idx = 0;
     let currentRow = startRow;
     while (idx < items.length) {
       let maxLinesThisRow = 1;
       for (let cOff = 0; cOff < maxCols && idx < items.length; cOff++, idx++) {
-        const colIndex = 5 + cOff; // E=5
+        const colIndex = 5 + cOff;
         const text = String(items[idx]);
         const cell = worksheet.getCell(currentRow, colIndex);
         cell.value = `${idx + 1}. ${text}`;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
         cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
         cell.border = THIN_BORDER;
-        // estimate lines for height calculation
         const lines = estimateLinesForText(text, worksheet.getColumn(colIndex).width);
         if (lines > maxLinesThisRow) maxLinesThisRow = lines;
       }
-      // set row height based on max lines encountered in this row
       worksheet.getRow(currentRow).height = Math.max(20, maxLinesThisRow * LINE_HEIGHT);
-      // if still items left, create next row with empty label area for symmetry
       if (idx < items.length) {
         const nextR = worksheet.addRow([]);
         const nextRN = nextR.number;
@@ -224,7 +252,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     }
   };
 
-  // write merged single box E:H (same style as addField detail cell) + auto-height
   const writeSingleBox = (rowNum, text) => {
     worksheet.mergeCells(`E${rowNum}:H${rowNum}`);
     const boxCell = worksheet.getCell(`E${rowNum}`);
@@ -232,18 +259,17 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     boxCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
     boxCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     for (let cc = 5; cc <= 8; cc++) {
-      const c = worksheet.getCell(rowNum, cc);
-      c.border = THIN_BORDER;
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      c.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      const cell = worksheet.getCell(rowNum, cc);
+      cell.border = THIN_BORDER;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
     }
-    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4; // approx total chars space
+    const effectiveWidth = Math.min(MAX_ITEM_COL_WIDTH, worksheet.getColumn(5).width || 28) * 4;
     const lines = estimateLinesForText(boxCell.value, effectiveWidth);
     worksheet.getRow(rowNum).height = Math.max(20, lines * LINE_HEIGHT);
   };
 
-
-  // ---------------- TÍTULO PRINCIPAL y secciones (igual que antes) ----------------
+  // ---------------- TÍTULO PRINCIPAL y secciones ----------------
   worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORMACIÓN DEL PERFIL - SOLICITUD';
@@ -261,7 +287,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   addField('Área', formData.areageneral || formData.area || formData.areaGeneral);
   addField('Departamento', formData.departamento);
   addField('Proceso al que pertenece', formData.proceso);
-  addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
+  await addHyperlink('Estructura organizacional', formData.estructuraorganizacional || formData.estructuraOrganizacional);
 
   const poblacionOptions = ['Discapacidad', 'Victimas del conflicto', 'Migrantes venezolanos'];
   const poblacionRaw = formData.poblacionfocalizada || formData.poblacionFocalizada || formData.poblacion || [];
@@ -367,7 +393,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
     normalized.forEach(c => {
       const nivelRaw = c.nivel !== undefined && c.nivel !== null ? String(c.nivel) : '';
-      const colIndex = nivelToCol(nivelRaw); // 2|3|4 o null
+      const colIndex = nivelToCol(nivelRaw);
       const rowArr = [c.competencia || '', '', '', '', c.definicion || '', '', '', ''];
       if (colIndex === 2) rowArr[1] = 'X';
       else if (colIndex === 3) rowArr[2] = 'X';
@@ -414,7 +440,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; c.alignment = { wrapText: true, vertical: 'top' }; });
     r.height = COMPACT_ROW_HEIGHT;
   } else {
-    // RESPONSABILIDAD
     normResp.forEach((rp, idx) => {
       const hr = worksheet.addRow([]);
       worksheet.mergeCells(`A${hr.number}:H${hr.number}`);
@@ -443,24 +468,24 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-   // ---------------- NUEVOS CAMPOS: SST ----------------
-    addSectionTitle('ANÁLISIS DE SEGURIDAD Y SALUD EN EL TRABAJO');
+  // ---------------- NUEVOS CAMPOS: SST ----------------
+  addSectionTitle('ANÁLISIS DE SEGURIDAD Y SALUD EN EL TRABAJO');
 
-    const rn_indicadores = writeLabelRow('Indicadores de Gestión');
-    writeSingleBox(rn_indicadores, formData.indicadores_gestion || formData.indicadoresGestion);
-    
-    const rn_requisitos = writeLabelRow('Requisitos Físicos');
-    writeSingleBox(rn_requisitos, formData.requisitos_fisicos || formData.requisitosFisicos);
+  const rn_indicadores = writeLabelRow('Indicadores de Gestión');
+  writeSingleBox(rn_indicadores, formData.indicadores_gestion || formData.indicadoresGestion);
 
-    const rn_riesgos_org = writeLabelRow('Riesgos y Obligaciones SST Organizacionales');
-    writeSingleBox(rn_riesgos_org, formData.riesgos_obligaciones_sst_organizacionales || formData.riesgosObligacionesOrg);
+  const rn_requisitos = writeLabelRow('Requisitos Físicos');
+  writeSingleBox(rn_requisitos, formData.requisitos_fisicos || formData.requisitosFisicos);
 
-    const rn_riesgos_esp = writeLabelRow('Riesgos y Obligaciones SST Específicos');
-    writeSingleBox(rn_riesgos_esp, formData.riesgos_obligaciones_sst_especificos || formData.riesgosObligacionesEsp);
+  const rn_riesgos_org = writeLabelRow('Riesgos y Obligaciones SST Organizacionales');
+  writeSingleBox(rn_riesgos_org, formData.riesgos_obligaciones_sst_organizacionales || formData.riesgosObligacionesOrg);
 
-    worksheet.addRow([]).height = 6;
+  const rn_riesgos_esp = writeLabelRow('Riesgos y Obligaciones SST Específicos');
+  writeSingleBox(rn_riesgos_esp, formData.riesgos_obligaciones_sst_especificos || formData.riesgosObligacionesEsp);
 
-  // ---------------- COMPLEMENTARIO (ajustado: sin numeración, márgenes iguales, auto-altura) ----------------
+  worksheet.addRow([]).height = 6;
+
+  // ---------------- COMPLEMENTARIO ----------------
   const compHeaderRow = worksheet.addRow([]);
   worksheet.mergeCells(`A${compHeaderRow.number}:H${compHeaderRow.number}`);
   const compHdrCell = worksheet.getCell(`A${compHeaderRow.number}`);
@@ -471,7 +496,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   compHdrCell.border = THIN_BORDER;
   worksheet.getRow(compHeaderRow.number).height = 18;
 
-  // Fill complementario with parsed data (no numeración, margins consistent)
   const entrenamientoItems = parseToArray(formData.plan_entrenamiento || formData.planEntrenamiento || []);
   const rn_ent = writeLabelRow('Plan de Entrenamiento (Inducción y Acompañamiento - Primeros 90 días)');
   if (entrenamientoItems.length > 0) writeItemsHorizontal(rn_ent, entrenamientoItems);
@@ -494,14 +518,14 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
 
   worksheet.addRow([]).height = 6;
 
-  // asegurar wrapText/alineación global
+  // Asegurar wrapText/alineación global
   worksheet.eachRow(row => {
     row.eachCell({ includeEmpty: true }, cell => {
       if (!cell.alignment) cell.alignment = { wrapText: true, vertical: 'top' };
     });
   });
 
-  // generar buffer y devolver attachment
+  // Generar buffer y devolver attachment
   const buffer = await workbook.xlsx.writeBuffer();
   return {
     filename: `Solicitud_${workflow_id}.xlsx`,
@@ -509,8 +533,6 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
-
-
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   return `
@@ -557,7 +579,6 @@ const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   `;
 };
 
-// Exportar todas las funciones necesarias
 export const generarHtmlCorreoArea = async (formData) => {
   const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Área');
   const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
