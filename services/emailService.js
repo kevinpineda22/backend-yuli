@@ -153,13 +153,13 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   };
 
   const addHyperlink = async (label, url) => {
-    const r = worksheet.addRow([label, '', '', '', '', '', '', '']);
+    const r = worksheet.addRow([label, '', '', '', 'Ver documento', '', '', '']);
     worksheet.mergeCells(`E${r.number}:H${r.number}`);
     const labelCell = r.getCell(1);
     const valueCell = r.getCell(5);
 
     if (url) {
-      valueCell.value = { text: '', hyperlink: String(url) };
+      valueCell.value = { text: 'Ver documento', hyperlink: String(url) };
       valueCell.font = { name: 'Arial', color: { argb: 'FF0563C1' }, underline: true };
     } else {
       valueCell.value = 'N/A';
