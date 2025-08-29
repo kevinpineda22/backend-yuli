@@ -108,7 +108,7 @@ export const crearFormulario = async (req, res) => {
 
         // Validar campos obligatorios
         const requiredFields = {
-            fecha, director, gerencia, seguridad, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -152,7 +152,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director,
             [fieldMapping.gerencia]: gerencia,
-            [fieldMapping.seguridad]: seguridad, // Seguridad siempre se guarda
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
@@ -212,13 +212,7 @@ export const crearFormulario = async (req, res) => {
 
         const emailFormData = createEmailData(req.body, data);
 
-        // Validar el destinatario del correo
         const emailRecipient = isConstruahorro === 'true' ? director : area;
-        if (!emailRecipient) {
-            console.error("No se definió un destinatario para el correo:", { director, area, isConstruahorro });
-            return res.status(400).json({ error: "No recipients defined" });
-        }
-
         const emailSubject = isConstruahorro === 'true' ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
         
         const emailData = await (isConstruahorro === 'true'
@@ -251,7 +245,7 @@ export const reenviarFormulario = async (req, res) => {
 
         // Validar campos obligatorios
         const requiredFields = {
-            fecha, director, gerencia, seguridad, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -259,7 +253,6 @@ export const reenviarFormulario = async (req, res) => {
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
-                console.error(`Campo obligatorio faltante: ${key}`);
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
@@ -296,8 +289,8 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director,
             [fieldMapping.gerencia]: gerencia,
-            [fieldMapping.seguridad]: seguridad, // Seguridad siempre se guarda
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -355,17 +348,7 @@ export const reenviarFormulario = async (req, res) => {
         
         const emailFormData = createEmailData(req.body, updated);
 
-        // Validar el destinatario del correo
         const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
-        if (!emailRecipient) {
-            console.error("No se definió un destinatario para el correo:", {
-                director: updated[fieldMapping.director],
-                area: updated[fieldMapping.area],
-                isConstruahorro
-            });
-            return res.status(400).json({ error: "No recipients defined" });
-        }
-
         const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
         
         const emailData = await (isConstruahorro === 'true'
@@ -398,7 +381,7 @@ export const actualizarFormulario = async (req, res) => {
 
         // Validar campos obligatorios
         const requiredFields = {
-            fecha, director, gerencia, seguridad, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades
@@ -406,7 +389,6 @@ export const actualizarFormulario = async (req, res) => {
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
-                console.error(`Campo obligatorio faltante: ${key}`);
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
@@ -443,8 +425,8 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director,
             [fieldMapping.gerencia]: gerencia,
-            [fieldMapping.seguridad]: seguridad, // Seguridad siempre se guarda
             [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.seguridad]: isConstruahorro === 'true' ? null : seguridad,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
