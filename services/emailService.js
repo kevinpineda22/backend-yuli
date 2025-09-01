@@ -597,6 +597,12 @@ export const generarHtmlCorreoGerencia = async (formData) => {
   return { html, attachments: [excelAttachment] };
 };
 
+export const generarHtmlCorreoCalidad = async (formData) => {
+  const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Calidad');
+  const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
+  return { html, attachments: [excelAttachment] };
+};
+
 export const generarHtmlCorreoSeguridad = async (formData) => {
   const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Seguridad y Salud en el Trabajo');
   const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
