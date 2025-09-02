@@ -710,9 +710,9 @@ export const decision = async (req, res) => {
             }
             updateFields = {
                 observacion_calidad: observacion || null,
-                estado: decision === 'aprobar' ? (isConstruahorro ? 'aprobado' : 'pendiente por seguridad') : 'rechazado por calidad',
+                estado: decision === 'aprobar' ? 'pendiente por seguridad' : 'rechazado por calidad',
             };
-            if (decision === 'aprobar' && !isConstruahorro) {
+            if (decision === 'aprobar') {
                 nextEmailRecipient = solicitud[fieldMapping.seguridad];
                 emailSubject = 'Nueva Solicitud de Aprobación - Seguridad';
                 emailData = await generarHtmlCorreoSeguridad({
