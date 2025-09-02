@@ -97,11 +97,10 @@ const createEmailData = (body, data) => {
     return {
         ...data,
         ...parsedData,
-        // Usar los nombres de las columnas del backend para las funciones de correo
         poblacionfocalizada: parsedData.poblacionFocalizada,
         competencias_culturales: parsedData.competenciasCulturales,
         competencias_cargo: parsedData.competenciasCargo,
-        responsabilidades: parsedData.responsabilidades, // Array de { value, funcion }
+        responsabilidades: parsedData.responsabilidades,
         indicadores_gestion: body.indicadoresGestion,
         requisitos_fisicos: body.requisitosFisicos,
         riesgos_obligaciones_sst_organizacionales: body.riesgosObligacionesOrg,
@@ -111,6 +110,15 @@ const createEmailData = (body, data) => {
         plan_carrera: body.planCarrera,
         competencias_desarrollo_ingreso: body.competenciasDesarrolloIngreso,
     };
+};
+
+// Validar destinatario del correo
+const validateEmailRecipient = (recipient, formType) => {
+    if (!recipient || !correoANombre[recipient]) {
+        console.error(`Destinatario no válido para ${formType}:`, recipient);
+        return { valid: false, error: `El campo ${formType} debe ser un correo electrónico válido` };
+    }
+    return { valid: true };
 };
 
 export const crearFormulario = async (req, res) => {
@@ -128,6 +136,9 @@ export const crearFormulario = async (req, res) => {
 
         const { estructuraOrganizacional } = req.files || {};
 
+        // Log del payload recibido
+        console.log('Payload recibido en crearFormulario:', { isConstruahorro, director, area });
+
         // Validar campos obligatorios
         const requiredFields = {
             fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
@@ -138,15 +149,26 @@ export const crearFormulario = async (req, res) => {
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
+                console.error(`Campo obligatorio faltante: ${key}`);
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
 
-        if (!isConstruahorro && !area) {
-            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        // Validar área solo para Merkahorro
+        const isConstruahorroForm = isConstruahorro === 'true';
+        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+            console.error('Área no válida para Merkahorro:', area);
+            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
+        }
+
+        // Validar director para Construahorro
+        if (isConstruahorroForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Construahorro:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+            console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
@@ -176,7 +198,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.gerencia]: gerencia,
             [fieldMapping.calidad]: calidad,
             [fieldMapping.seguridad]: seguridad,
-            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.area]: isConstruahorroForm ? null : area,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -210,16 +232,17 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
             observacion_calidad: null,
             observacion_seguridad: null,
             role: 'creador',
-            [fieldMapping.isConstruahorro]: isConstruahorro === 'true',
+            [fieldMapping.isConstruahorro]: isConstruahorroForm,
         };
 
+        // Insertar en Supabase
         const { data, error } = await supabase
             .from('yuli')
             .insert(formData)
@@ -234,18 +257,27 @@ export const crearFormulario = async (req, res) => {
         const workflow_id = data.id;
         await supabase.from('yuli').update({ workflow_id }).eq('id', workflow_id);
 
+        // Preparar datos para el correo
         const emailFormData = createEmailData(req.body, data);
+        const emailRecipient = isConstruahorroForm ? director : area;
+        const emailSubject = isConstruahorroForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
 
-        const emailRecipient = isConstruahorro === 'true' ? director : area;
-        const emailSubject = isConstruahorro === 'true' ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
-        
-        const emailData = await (isConstruahorro === 'true'
+        // Validar destinatario
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        if (!validation.valid) {
+            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', data);
+            return res.status(400).json({ error: validation.error });
+        }
+
+        const emailData = await (isConstruahorroForm
             ? generarHtmlCorreoDirector({ ...emailFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
             : generarHtmlCorreoArea({ ...emailFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
 
+        // Enviar correo
+        console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}`, workflow_id });
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}`, workflow_id });
     } catch (err) {
         console.error("Error en crearFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -267,7 +299,10 @@ export const reenviarFormulario = async (req, res) => {
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
 
-        // Obtener la solicitud actual desde Supabase para verificar su existencia
+        // Log del payload recibido
+        console.log('Payload recibido en reenviarFormulario:', { id, isConstruahorro, director, area });
+
+        // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error: fetchError } = await supabase
             .from('yuli')
             .select('*')
@@ -278,6 +313,10 @@ export const reenviarFormulario = async (req, res) => {
             console.error('Error al obtener solicitud:', fetchError);
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
+
+        // Usar isConstruahorro del registro en Supabase como fuente principal
+        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
+        console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
 
         // Validar campos obligatorios
         const requiredFields = {
@@ -294,26 +333,21 @@ export const reenviarFormulario = async (req, res) => {
             }
         }
 
-        if (!isConstruahorro && !area) {
-            console.error('Falta el campo área para Merkahorro');
-            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        // Validar área solo para Merkahorro
+        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+            console.error('Área no válida para Merkahorro:', area);
+            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
+        }
+
+        // Validar director para Construahorro
+        if (isConstruahorroForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Construahorro:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
-        }
-
-        // Validar que el director sea un correo válido para Construahorro
-        if (isConstruahorro === 'true' && (!director || !correoANombre[director])) {
-            console.error('Director no válido para Construahorro:', director);
-            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
-        }
-
-        // Validar que el área sea un correo válido para Merkahorro
-        if (isConstruahorro !== 'true' && (!area || !correoANombre[area])) {
-            console.error('Área no válida para Merkahorro:', area);
-            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
 
         // Subir estructura organizacional
@@ -342,7 +376,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.gerencia]: gerencia,
             [fieldMapping.calidad]: calidad,
             [fieldMapping.seguridad]: seguridad,
-            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.area]: isConstruahorroForm ? null : area,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -376,13 +410,13 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorro === 'true' ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
             observacion_calidad: null,
             observacion_seguridad: null,
-            [fieldMapping.isConstruahorro]: isConstruahorro === 'true',
+            [fieldMapping.isConstruahorro]: isConstruahorroForm,
         };
 
         // Actualizar la solicitud en Supabase
@@ -399,27 +433,28 @@ export const reenviarFormulario = async (req, res) => {
         }
 
         // Determinar el destinatario del correo
-        const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
-        
-        // Validar que el destinatario sea válido
-        if (!emailRecipient || !correoANombre[emailRecipient]) {
+        const emailRecipient = isConstruahorroForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
+
+        // Validar destinatario
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        if (!validation.valid) {
             console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
-            return res.status(400).json({ error: 'El destinatario del correo no es válido o no está definido' });
+            return res.status(400).json({ error: validation.error });
         }
 
-        const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-        
+        const emailSubject = isConstruahorroForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
+
         const emailFormData = createEmailData(req.body, updated);
 
-        const emailData = await (isConstruahorro === 'true'
-            ? generarHtmlCorreoDirector({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
-            : generarHtmlCorreoArea({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
+        const emailData = await (isConstruahorroForm
+            ? generarHtmlCorreoDirector({ ...emailFormData, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
+            : generarHtmlCorreoArea({ ...emailFormData, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
 
         // Enviar el correo
         console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}` });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
@@ -441,6 +476,25 @@ export const actualizarFormulario = async (req, res) => {
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
 
+        // Log del payload recibido
+        console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area });
+
+        // Obtener la solicitud actual desde Supabase
+        const { data: solicitud, error: fetchError } = await supabase
+            .from('yuli')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !solicitud) {
+            console.error('Error al obtener solicitud:', fetchError);
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        // Usar isConstruahorro del registro en Supabase como fuente principal
+        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
+        console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
+
         // Validar campos obligatorios
         const requiredFields = {
             fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
@@ -451,15 +505,25 @@ export const actualizarFormulario = async (req, res) => {
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
+                console.error(`Campo obligatorio faltante: ${key}`);
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
 
-        if (!isConstruahorro && !area) {
-            return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
+        // Validar área solo para Merkahorro
+        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+            console.error('Área no válida para Merkahorro:', area);
+            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
+        }
+
+        // Validar director para Construahorro
+        if (isConstruahorroForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Construahorro:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+            console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
@@ -489,7 +553,7 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.gerencia]: gerencia,
             [fieldMapping.calidad]: calidad,
             [fieldMapping.seguridad]: seguridad,
-            [fieldMapping.area]: isConstruahorro === 'true' ? null : area,
+            [fieldMapping.area]: isConstruahorroForm ? null : area,
             [fieldMapping.nombreCargo]: nombreCargo,
             [fieldMapping.areaGeneral]: areaGeneral,
             [fieldMapping.departamento]: departamento,
@@ -523,9 +587,10 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            [fieldMapping.isConstruahorro]: isConstruahorro === 'true',
+            [fieldMapping.isConstruahorro]: isConstruahorroForm,
         };
 
+        // Actualizar en Supabase
         const { data, error } = await supabase
             .from('yuli')
             .update(updateFields)
@@ -550,14 +615,20 @@ export const decision = async (req, res) => {
         const { id, role } = req.params;
         const { decision, observacion } = req.body;
 
+        // Log de la decisión recibida
+        console.log('Procesando decisión:', { id, role, decision, observacion });
+
         if (!['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(role)) {
+            console.error('Rol no válido:', role);
             return res.status(400).json({ error: 'Rol no válido' });
         }
 
         if (!['aprobar', 'rechazar'].includes(decision)) {
+            console.error('Decisión no válida:', decision);
             return res.status(400).json({ error: 'Decisión no válida' });
         }
 
+        // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error } = await supabase
             .from('yuli')
             .select('*')
@@ -569,15 +640,15 @@ export const decision = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        const isConstruahorro = solicitud.isConstruahorro;
+        const isConstruahorro = solicitud[fieldMapping.isConstruahorro] === true;
         let updateFields = {};
         let nextEmailRecipient = null;
         let emailSubject = '';
         let emailData = null;
-        let newEstado = '';
 
         if (role === 'area' && !isConstruahorro) {
             if (solicitud.estado !== 'pendiente por area') {
+                console.error('Estado no válido para área:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por área' });
             }
             updateFields = {
@@ -585,7 +656,7 @@ export const decision = async (req, res) => {
                 estado: decision === 'aprobar' ? 'pendiente por director' : 'rechazado por area',
             };
             if (decision === 'aprobar') {
-                nextEmailRecipient = solicitud.director;
+                nextEmailRecipient = solicitud[fieldMapping.director];
                 emailSubject = 'Nueva Solicitud de Aprobación - Director';
                 emailData = await generarHtmlCorreoDirector({
                     ...solicitud,
@@ -596,6 +667,7 @@ export const decision = async (req, res) => {
             }
         } else if (role === 'director') {
             if (solicitud.estado !== 'pendiente por director') {
+                console.error('Estado no válido para director:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por director' });
             }
             updateFields = {
@@ -603,7 +675,7 @@ export const decision = async (req, res) => {
                 estado: decision === 'aprobar' ? 'pendiente por gerencia' : 'rechazado por director',
             };
             if (decision === 'aprobar') {
-                nextEmailRecipient = solicitud.gerencia;
+                nextEmailRecipient = solicitud[fieldMapping.gerencia];
                 emailSubject = 'Nueva Solicitud de Aprobación - Gerencia';
                 emailData = await generarHtmlCorreoGerencia({
                     ...solicitud,
@@ -614,6 +686,7 @@ export const decision = async (req, res) => {
             }
         } else if (role === 'gerencia') {
             if (solicitud.estado !== 'pendiente por gerencia') {
+                console.error('Estado no válido para gerencia:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por gerencia' });
             }
             updateFields = {
@@ -621,7 +694,7 @@ export const decision = async (req, res) => {
                 estado: decision === 'aprobar' ? 'pendiente por calidad' : 'rechazado por gerencia',
             };
             if (decision === 'aprobar') {
-                nextEmailRecipient = solicitud.calidad;
+                nextEmailRecipient = solicitud[fieldMapping.calidad];
                 emailSubject = 'Nueva Solicitud de Aprobación - Calidad';
                 emailData = await generarHtmlCorreoCalidad({
                     ...solicitud,
@@ -632,6 +705,7 @@ export const decision = async (req, res) => {
             }
         } else if (role === 'calidad') {
             if (solicitud.estado !== 'pendiente por calidad') {
+                console.error('Estado no válido para calidad:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por calidad' });
             }
             updateFields = {
@@ -639,7 +713,7 @@ export const decision = async (req, res) => {
                 estado: decision === 'aprobar' ? (isConstruahorro ? 'aprobado' : 'pendiente por seguridad') : 'rechazado por calidad',
             };
             if (decision === 'aprobar' && !isConstruahorro) {
-                nextEmailRecipient = solicitud.seguridad;
+                nextEmailRecipient = solicitud[fieldMapping.seguridad];
                 emailSubject = 'Nueva Solicitud de Aprobación - Seguridad';
                 emailData = await generarHtmlCorreoSeguridad({
                     ...solicitud,
@@ -650,6 +724,7 @@ export const decision = async (req, res) => {
             }
         } else if (role === 'seguridad') {
             if (solicitud.estado !== 'pendiente por seguridad') {
+                console.error('Estado no válido para seguridad:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por seguridad' });
             }
             updateFields = {
@@ -658,6 +733,16 @@ export const decision = async (req, res) => {
             };
         }
 
+        // Validar destinatario del siguiente correo (si aplica)
+        if (decision === 'aprobar' && nextEmailRecipient) {
+            const validation = validateEmailRecipient(nextEmailRecipient, role === 'area' ? 'director' : role === 'director' ? 'gerencia' : role === 'gerencia' ? 'calidad' : 'seguridad');
+            if (!validation.valid) {
+                console.error('Destinatario no válido para el siguiente paso:', nextEmailRecipient);
+                return res.status(400).json({ error: validation.error });
+            }
+        }
+
+        // Actualizar en Supabase
         const { error: updateError } = await supabase
             .from('yuli')
             .update(updateFields)
@@ -668,7 +753,9 @@ export const decision = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
+        // Enviar correo al siguiente aprobador (si aplica)
         if (decision === 'aprobar' && nextEmailRecipient && emailData) {
+            console.log('Enviando correo a:', nextEmailRecipient, 'Asunto:', emailSubject);
             await sendEmail(nextEmailRecipient, emailSubject, emailData.html, emailData.attachments);
         }
 
