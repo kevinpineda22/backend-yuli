@@ -9,6 +9,7 @@ import {
   respuestaArea,
   respuestaDirector,
   respuestaGerencia,
+  respuestaCalidad, // Agregar importación de respuestaCalidad
   respuestaSeguridad
 } from '../controllers/formResponseController.js';
 import {
@@ -38,6 +39,7 @@ router.put('/yuli/:id', upload.fields([
 router.post('/dgdecision/:workflow_id/area', respuestaArea);
 router.post('/dgdecision/:workflow_id/director', respuestaDirector);
 router.post('/dgdecision/:workflow_id/gerencia', respuestaGerencia);
+router.post('/dgdecision/:workflow_id/calidad', upload.none(), respuestaCalidad); // Nueva ruta para calidad
 router.post('/dgdecision/:workflow_id/seguridad', upload.none(), respuestaSeguridad);
 
 // Rutas para consultas
