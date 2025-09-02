@@ -48,6 +48,27 @@ const fieldMapping = {
     competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso',
 };
 
+// Mapeo de correos a nombres para personalizar los correos
+const correoANombre = {
+    "sistemas@merkahorrosas.com": "Yonatan Valencia (Coordinador Sistemas)",
+    "gestionhumanamerkahorro@gmail.com": "Yuliana Garcia (Gestion Humana)",
+    "compras@merkahorrosas.com": "Julian Hurtado (Coordinador Estrategico de Compras)",
+    "logistica@merkahorrosas.com": "Dorancy (Coordinadora Logistica)",
+    "desarrollo@merkahorrosas.com": "Kevin Pineda (Analista Especializado en Desarrollo de Software)",
+    "operaciones@merkahorrosas.com": "Ramiro Hincapie",
+    "contabilidad1@merkahorrosas.com": "Ana Herrera",
+    "gestionhumana@merkahorrosas.com": "Yuliana Garcia",
+    "gerencia@merkahorrosas.com": "Diego Salazar",
+    "gerencia1@merkahorrosas.com": "Stiven Salazar",
+    "gerencia@megamayoristas.com": "Adrian Hoyos",
+    "gerencia@construahorrosas.com": "William Salazar",
+    "Comercialconstruahorro@merkahorrosas.com": "Jaiber (Director Comercial Construahorro)",
+    "juanmerkahorro@gmail.com": "Juan (Director Comercial Construahorro)",
+    "johanmerkahorro777@gmail.com": "Johan (Gerencia Construahorro)",
+    "catherinem.asisge@gmail.com": "Catherine (Seguridad y Salud en el Trabajo)",
+    "analista@merkahorrosas.com": "Anny Solarte (Calidad)",
+};
+
 // Función auxiliar para parsear los campos JSON del body a objetos de JS
 const parseJSONFields = (data) => {
     const newData = { ...data };
@@ -246,6 +267,18 @@ export const reenviarFormulario = async (req, res) => {
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
 
+        // Obtener la solicitud actual desde Supabase para verificar su existencia
+        const { data: solicitud, error: fetchError } = await supabase
+            .from('yuli')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !solicitud) {
+            console.error('Error al obtener solicitud:', fetchError);
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
         // Validar campos obligatorios
         const requiredFields = {
             fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
@@ -256,16 +289,31 @@ export const reenviarFormulario = async (req, res) => {
 
         for (const [key, value] of Object.entries(requiredFields)) {
             if (!value) {
+                console.error(`Campo obligatorio faltante: ${key}`);
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
 
         if (!isConstruahorro && !area) {
+            console.error('Falta el campo área para Merkahorro');
             return res.status(400).json({ error: 'El campo área es obligatorio para solicitudes de Merkahorro' });
         }
 
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+            console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+        }
+
+        // Validar que el director sea un correo válido para Construahorro
+        if (isConstruahorro === 'true' && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Construahorro:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
+
+        // Validar que el área sea un correo válido para Merkahorro
+        if (isConstruahorro !== 'true' && (!area || !correoANombre[area])) {
+            console.error('Área no válida para Merkahorro:', area);
+            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
 
         // Subir estructura organizacional
@@ -337,6 +385,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.isConstruahorro]: isConstruahorro === 'true',
         };
 
+        // Actualizar la solicitud en Supabase
         const { data: updated, error: updateError } = await supabase
             .from('yuli')
             .update(updates)
@@ -349,20 +398,28 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
-        const workflow_id = updated.workflow_id;
+        // Determinar el destinatario del correo
+        const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
+        
+        // Validar que el destinatario sea válido
+        if (!emailRecipient || !correoANombre[emailRecipient]) {
+            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
+            return res.status(400).json({ error: 'El destinatario del correo no es válido o no está definido' });
+        }
+
+        const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
         
         const emailFormData = createEmailData(req.body, updated);
 
-        const emailRecipient = isConstruahorro === 'true' ? updated[fieldMapping.director] : updated[fieldMapping.area];
-        const emailSubject = isConstruahorro === 'true' ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-        
         const emailData = await (isConstruahorro === 'true'
-            ? generarHtmlCorreoDirector({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
-            : generarHtmlCorreoArea({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
+            ? generarHtmlCorreoDirector({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
+            : generarHtmlCorreoArea({ ...emailFormData, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
 
+        // Enviar el correo
+        console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.json({ message: "Solicitud reenviada, flujo reiniciado y correo enviado a " + (isConstruahorro === 'true' ? 'director' : 'área') });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorro === 'true' ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
