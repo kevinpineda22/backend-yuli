@@ -210,10 +210,26 @@ export const respuestaCalidad = async (req, res) => {
       return res.status(500).json({ error: "Error al obtener el registro" });
     }
 
+    // Log adicional para depurar
+    console.log('Solicitud obtenida:', {
+      id: formRecord.id,
+      workflow_id: formRecord.workflow_id,
+      estado: formRecord.estado,
+      isConstruahorro: formRecord[fieldMapping.isConstruahorro],
+      seguridad: formRecord[fieldMapping.seguridad],
+      calidad: formRecord[fieldMapping.calidad],
+    });
+
     if (formRecord.estado !== "aprobado por gerencia") {
+      console.error("Estado inválido para calidad:", formRecord.estado);
       return res.status(400).json({
         error: `Gerencia aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'`,
       });
+    }
+
+    if (!['aprobado', 'rechazado'].includes(decision)) {
+      console.error("Decisión no válida:", decision);
+      return res.status(400).json({ error: "Decisión no válida. Debe ser 'aprobado' o 'rechazado'" });
     }
 
     if (decision === "rechazado") {
@@ -225,42 +241,77 @@ export const respuestaCalidad = async (req, res) => {
         })
         .eq("workflow_id", workflow_id);
 
+      // Enviar correo al creador notificando el rechazo
+      const creatorEmail = formRecord[fieldMapping.isConstruahorro] ? formRecord[fieldMapping.director] : formRecord[fieldMapping.area];
+      const creatorValidation = validateEmailRecipient(creatorEmail, formRecord[fieldMapping.isConstruahorro] ? 'director' : 'area');
+      if (creatorValidation.valid) {
+        const emailSubject = `Solicitud ${workflow_id} rechazada por Calidad`;
+        const emailData = {
+          html: `
+            <h2>Solicitud de Perfil de Cargo #${workflow_id}</h2>
+            <p>La solicitud para el cargo <strong>${formRecord.nombrecargo}</strong> ha sido rechazada por Calidad.</p>
+            ${observacion ? `<p><strong>Observación:</strong> ${observacion}</p>` : ''}
+            <p><a href="https://www.merkahorro.com/dgdecision/${workflow_id}/view">Ver solicitud</a></p>
+          `,
+          attachments: [],
+        };
+        console.log('Enviando correo de rechazo a:', creatorEmail, 'Asunto:', emailSubject);
+        await sendEmail(creatorEmail, emailSubject, emailData.html, emailData.attachments);
+      } else {
+        console.warn('No se pudo enviar correo al creador debido a correo inválido:', creatorEmail);
+      }
+
       return res.json({ message: "Formulario rechazado por calidad" });
+    }
+
+    // Validar el correo de Seguridad
+    const seguridadValidation = validateEmailRecipient(formRecord[fieldMapping.seguridad], 'seguridad');
+    if (!seguridadValidation.valid) {
+      console.error("Correo de seguridad inválido o no definido:", formRecord[fieldMapping.seguridad]);
+      return res.status(400).json({ error: seguridadValidation.error });
     }
 
     await supabase
       .from("yuli")
       .update({
-        estado: formRecord[fieldMapping.isConstruahorro] ? "aprobado por todos" : "pendiente por seguridad",
+        estado: "pendiente por seguridad",
         observacion_calidad: observacion || "",
       })
       .eq("workflow_id", workflow_id);
 
-    if (!formRecord[fieldMapping.isConstruahorro]) {
-      if (!formRecord[fieldMapping.seguridad] || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formRecord[fieldMapping.seguridad])) {
-        console.error("Correo de seguridad inválido o no definido:", formRecord[fieldMapping.seguridad]);
-        return res.status(400).json({ error: "El correo de Seguridad y Salud en el Trabajo no está definido o es inválido" });
-      }
+    const emailData = await generarHtmlCorreoSeguridad({
+      ...formRecord,
+      approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
+      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
+    });
 
-      const emailData = await generarHtmlCorreoSeguridad({
-        ...formRecord,
-        approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
-        rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
+    console.log('Enviando correo a Seguridad:', formRecord[fieldMapping.seguridad], 'Asunto:', "Solicitud de Aprobación - Seguridad y Salud en el Trabajo");
+    await sendEmail(formRecord[fieldMapping.seguridad], "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
+
+    // Enviar actualización vía WebSocket (si está configurado)
+    if (global.wss) {
+      const wsMessage = {
+        type: 'solicitudUpdate',
+        solicitudId: workflow_id,
+        newStatus: "pendiente por seguridad",
+        updatedData: {
+          observacion_calidad: observacion || null,
+        },
+      };
+      global.wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(wsMessage));
+        }
       });
-
-      await sendEmail(formRecord[fieldMapping.seguridad], "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
     }
 
-    res.json({
-      message: formRecord[fieldMapping.isConstruahorro]
-        ? "Formulario aprobado por todos"
-        : "Decisión de calidad registrada y correo enviado a Seguridad y Salud en el Trabajo",
-    });
+    res.json({ message: "Decisión de calidad registrada y correo enviado a Seguridad y Salud en el Trabajo" });
   } catch (err) {
     console.error("Error en respuestaCalidad:", err);
     res.status(500).json({ error: err.message || "Error interno del servidor" });
   }
 };
+
 
 export const respuestaSeguridad = async (req, res) => {
   try {
