@@ -332,16 +332,16 @@ export const respuestaSeguridad = async (req, res) => {
       return res.status(500).json({ error: "Error al obtener el registro" });
     }
 
-    if (formRecord[fieldMapping.isConstruahorro]) {
-      return res.status(400).json({
-        error: "Esta solicitud es de Construahorro y no requiere aprobación de Seguridad y Salud en el Trabajo",
-      });
-    }
-
     if (formRecord.estado !== "pendiente por seguridad") {
+      console.error("Estado inválido para seguridad:", formRecord.estado);
       return res.status(400).json({
         error: `Estado inválido. Se esperaba 'pendiente por seguridad', pero se encontró '${formRecord.estado}'`,
       });
+    }
+
+    if (!['aprobado', 'rechazado'].includes(decision)) {
+      console.error("Decisión no válida:", decision);
+      return res.status(400).json({ error: "Decisión no válida. Debe ser 'aprobado' o 'rechazado'" });
     }
 
     const newEstado = decision === "aprobado" ? "aprobado por todos" : `rechazado por seguridad (${formRecord[fieldMapping.seguridad]})`;
@@ -353,6 +353,44 @@ export const respuestaSeguridad = async (req, res) => {
         observacion_seguridad: observacion || "",
       })
       .eq("workflow_id", workflow_id);
+
+    // Enviar correo al creador
+    const creatorEmail = formRecord[fieldMapping.isConstruahorro] ? formRecord[fieldMapping.director] : formRecord[fieldMapping.area];
+    const creatorValidation = validateEmailRecipient(creatorEmail, formRecord[fieldMapping.isConstruahorro] ? 'director' : 'area');
+    if (creatorValidation.valid) {
+      const finalStatus = decision === "aprobado" ? "aprobado por todos" : "rechazado por Seguridad";
+      const emailSubject = `Solicitud ${workflow_id} ${finalStatus}`;
+      const emailData = {
+        html: `
+          <h2>Solicitud de Perfil de Cargo #${workflow_id}</h2>
+          <p>La solicitud para el cargo <strong>${formRecord.nombrecargo}</strong> ha sido ${finalStatus}.</p>
+          ${observacion ? `<p><strong>Observación de Seguridad:</strong> ${observacion}</p>` : ''}
+          <p><a href="https://www.merkahorro.com/dgdecision/${workflow_id}/view">Ver solicitud</a></p>
+        `,
+        attachments: [],
+      };
+      console.log('Enviando correo de resultado final a:', creatorEmail, 'Asunto:', emailSubject);
+      await sendEmail(creatorEmail, emailSubject, emailData.html, emailData.attachments);
+    } else {
+      console.warn('No se pudo enviar correo al creador debido a correo inválido:', creatorEmail);
+    }
+
+    // Enviar actualización vía WebSocket
+    if (global.wss) {
+      const wsMessage = {
+        type: 'solicitudUpdate',
+        solicitudId: workflow_id,
+        newStatus: newEstado,
+        updatedData: {
+          observacion_seguridad: observacion || null,
+        },
+      };
+      global.wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(wsMessage));
+        }
+      });
+    }
 
     res.json({ message: `Formulario ${newEstado}` });
   } catch (err) {
