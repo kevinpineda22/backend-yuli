@@ -640,6 +640,16 @@ export const decision = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
+        // Log adicional para depurar el estado y el campo seguridad
+        console.log('Solicitud obtenida:', {
+            id: solicitud.id,
+            estado: solicitud.estado,
+            isConstruahorro: solicitud[fieldMapping.isConstruahorro],
+            seguridad: solicitud[fieldMapping.seguridad],
+            area: solicitud[fieldMapping.area],
+            director: solicitud[fieldMapping.director],
+        });
+
         const isConstruahorro = solicitud[fieldMapping.isConstruahorro] === true;
         let updateFields = {};
         let nextEmailRecipient = null;
@@ -731,6 +741,28 @@ export const decision = async (req, res) => {
                 observacion_seguridad: observacion || null,
                 estado: decision === 'aprobar' ? 'aprobado' : 'rechazado por seguridad',
             };
+            if (decision === 'aprobar' || decision === 'rechazar') {
+                // Enviar correo al creador del formulario
+                const creatorEmail = isConstruahorro ? solicitud[fieldMapping.director] : solicitud[fieldMapping.area];
+                const creatorValidation = validateEmailRecipient(creatorEmail, isConstruahorro ? 'director' : 'area');
+                if (creatorValidation.valid) {
+                    const finalStatus = decision === 'aprobar' ? 'aprobado completamente' : 'rechazado en Seguridad';
+                    emailSubject = `Solicitud ${solicitud.id} ${finalStatus}`;
+                    emailData = {
+                        html: `
+                            <h2>Solicitud de Perfil de Cargo #${solicitud.id}</h2>
+                            <p>La solicitud para el cargo <strong>${solicitud[fieldMapping.nombreCargo]}</strong> ha sido ${finalStatus}.</p>
+                            ${observacion ? `<p><strong>Observación de Seguridad:</strong> ${observacion}</p>` : ''}
+                            <p><a href="https://www.merkahorro.com/dgdecision/${solicitud.id}/view">Ver solicitud</a></p>
+                        `,
+                        attachments: [],
+                    };
+                    console.log('Enviando correo de resultado final a:', creatorEmail, 'Asunto:', emailSubject);
+                    await sendEmail(creatorEmail, emailSubject, emailData.html, emailData.attachments);
+                } else {
+                    console.warn('No se pudo enviar correo al creador debido a correo inválido:', creatorEmail);
+                }
+            }
         }
 
         // Validar destinatario del siguiente correo (si aplica)
@@ -757,6 +789,23 @@ export const decision = async (req, res) => {
         if (decision === 'aprobar' && nextEmailRecipient && emailData) {
             console.log('Enviando correo a:', nextEmailRecipient, 'Asunto:', emailSubject);
             await sendEmail(nextEmailRecipient, emailSubject, emailData.html, emailData.attachments);
+        }
+
+        // Enviar actualización vía WebSocket (si está configurado)
+        if (global.wss) {
+            const wsMessage = {
+                type: 'solicitudUpdate',
+                solicitudId: id,
+                newStatus: updateFields.estado,
+                updatedData: {
+                    [`observacion_${role}`]: observacion || null,
+                },
+            };
+            global.wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(wsMessage));
+                }
+            });
         }
 
         res.json({ message: `Solicitud ${decision === 'aprobar' ? 'aprobada' : 'rechazada'} por ${role}` });
