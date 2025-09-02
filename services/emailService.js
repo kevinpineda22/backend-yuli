@@ -447,8 +447,12 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     });
     r.height = COMPACT_ROW_HEIGHT;
   } else {
+    // Recorremos y para cada responsabilidad imprimimos:
+    // 1) Header "RESPONSABILIDAD N" (A:H, fondo verde)
+    // 2) Fila amplia con la responsabilidad (A:H, fondo claro)
+    // 3) Fila amplia con la función (A:H, fondo claro)
     normResp.forEach((rp, idx) => {
-      // Título de la responsabilidad (ej. RESPONSABILIDAD 1)
+      // Header de la responsabilidad
       const headerRow = worksheet.addRow([]);
       worksheet.mergeCells(`A${headerRow.number}:H${headerRow.number}`);
       const headerCell = worksheet.getCell(`A${headerRow.number}`);
@@ -459,36 +463,50 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
       headerCell.border = THIN_BORDER;
       worksheet.getRow(headerRow.number).height = 18;
 
-      // Fila para el valor de la responsabilidad
-      const valueRow = worksheet.addRow([rp.value || 'N/A', '', '', '', '', '', '', '']);
-      worksheet.mergeCells(`A${valueRow.number}:D${valueRow.number}`);
-      const valueLabelCell = valueRow.getCell(1);
-      valueLabelCell.font = { bold: true };
-      valueLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      valueLabelCell.border = THIN_BORDER;
-      valueLabelCell.alignment = { wrapText: true, vertical: 'top' };
-      for (let cc = 1; cc <= 4; cc++) {
-        const cell = valueRow.getCell(cc);
+      // Fila con la responsabilidad (merge A:H)
+      const respRow = worksheet.addRow([]);
+      worksheet.mergeCells(`A${respRow.number}:H${respRow.number}`);
+      const respCell = worksheet.getCell(`A${respRow.number}`);
+      respCell.value = rp.value || 'N/A';
+      respCell.font = { name: 'Arial', bold: false };
+      respCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      respCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      // bordes y estilo en todas las celdas de A..H
+      for (let c = 1; c <= 8; c++) {
+        const cell = worksheet.getCell(respRow.number, c);
         cell.border = THIN_BORDER;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       }
-      const valueLines = estimateLinesForText(rp.value, worksheet.getColumn(1).width);
-      worksheet.getRow(valueRow.number).height = Math.max(20, valueLines * LINE_HEIGHT);
+      // calcular altura basándonos en ancho total aproximado (suma aproximada de anchos de columnas)
+      const totalColsWidth = (worksheet.getColumn(1).width || 18)
+                           + (worksheet.getColumn(2).width || 3)
+                           + (worksheet.getColumn(3).width || 3)
+                           + (worksheet.getColumn(4).width || 3)
+                           + (worksheet.getColumn(5).width || 14)
+                           + (worksheet.getColumn(6).width || 14)
+                           + (worksheet.getColumn(7).width || 14)
+                           + (worksheet.getColumn(8).width || 14);
+      const respLines = estimateLinesForText(respCell.value, totalColsWidth);
+      worksheet.getRow(respRow.number).height = Math.max(20, respLines * LINE_HEIGHT);
 
-      // Fila para la función
-      const funcionRow = worksheet.addRow(['', '', '', '', rp.funcion || 'N/A', '', '', '']);
-      worksheet.mergeCells(`E${funcionRow.number}:H${funcionRow.number}`);
-      const funcionCell = funcionRow.getCell(5);
-      funcionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-      funcionCell.border = THIN_BORDER;
-      funcionCell.alignment = { wrapText: true, vertical: 'top' };
-      for (let cc = 1; cc <= 4; cc++) {
-        const cell = funcionRow.getCell(cc);
+      // Fila con la función (merge A:H)
+      const funcRow = worksheet.addRow([]);
+      worksheet.mergeCells(`A${funcRow.number}:H${funcRow.number}`);
+      const funcCell = worksheet.getCell(`A${funcRow.number}`);
+      funcCell.value = rp.funcion || 'N/A';
+      funcCell.font = { name: 'Arial', italic: false };
+      funcCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      funcCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      for (let c = 1; c <= 8; c++) {
+        const cell = worksheet.getCell(funcRow.number, c);
         cell.border = THIN_BORDER;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
       }
-      const funcionLines = estimateLinesForText(rp.funcion, worksheet.getColumn(5).width * 4);
-      worksheet.getRow(funcionRow.number).height = Math.max(20, funcionLines * LINE_HEIGHT);
+      const funcLines = estimateLinesForText(funcCell.value, totalColsWidth);
+      worksheet.getRow(funcRow.number).height = Math.max(20, funcLines * LINE_HEIGHT);
+
+      // Espacio entre responsabilidades
+      worksheet.addRow([]).height = 2;
     });
   }
 
@@ -559,6 +577,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
+
 
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
