@@ -425,44 +425,70 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
   const normResp = parsedResp.map(r => {
     if (typeof r === 'string') {
       const parts = r.split(' - ');
-      return { titulo: parts[0].trim(), detalle: parts.slice(1).join(' - ').trim() };
+      return { value: parts[0].trim(), funcion: parts.slice(1).join(' - ').trim() };
     }
     if (typeof r === 'object') {
-      return { titulo: r.titulo || r.title || r.responsabilidad || r.nombre || '', detalle: r.detalle || r.descripcion || r.description || r.detalle || '' };
+      return {
+        value: r.value || r.titulo || r.title || r.responsabilidad || r.nombre || '',
+        funcion: r.funcion || r.detalle || r.descripcion || r.description || ''
+      };
     }
-    return { titulo: String(r), detalle: '' };
+    return { value: String(r), funcion: '' };
   }).filter(Boolean);
 
   if (normResp.length === 0) {
     const r = worksheet.addRow(['No aplica', '', '', '', 'No hay responsabilidades definidas', '', '', '']);
     worksheet.mergeCells(`A${r.number}:D${r.number}`);
     worksheet.mergeCells(`E${r.number}:H${r.number}`);
-    r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } }; c.border = THIN_BORDER; c.alignment = { wrapText: true, vertical: 'top' }; });
+    r.eachCell(c => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      c.border = THIN_BORDER;
+      c.alignment = { wrapText: true, vertical: 'top' };
+    });
     r.height = COMPACT_ROW_HEIGHT;
   } else {
     normResp.forEach((rp, idx) => {
-      const hr = worksheet.addRow([]);
-      worksheet.mergeCells(`A${hr.number}:H${hr.number}`);
-      const hc = worksheet.getCell(`A${hr.number}`);
-      hc.value = `RESPONSABILIDAD ${idx + 1}`;
-      hc.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
-      hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
-      hc.alignment = { horizontal: 'center', vertical: 'middle' };
-      hc.border = THIN_BORDER;
-      worksheet.getRow(hr.number).height = 18;
+      // Título de la responsabilidad (ej. RESPONSABILIDAD 1)
+      const headerRow = worksheet.addRow([]);
+      worksheet.mergeCells(`A${headerRow.number}:H${headerRow.number}`);
+      const headerCell = worksheet.getCell(`A${headerRow.number}`);
+      headerCell.value = `RESPONSABILIDAD ${idx + 1}`;
+      headerCell.font = { name: 'Arial', bold: true, color: { argb: 'FF000000' } };
+      headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SECTION } };
+      headerCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      headerCell.border = THIN_BORDER;
+      worksheet.getRow(headerRow.number).height = 18;
 
-      const dr = worksheet.addRow([rp.titulo || '', '', '', '', rp.detalle || '', '', '', '']);
-      worksheet.mergeCells(`A${dr.number}:D${dr.number}`);
-      worksheet.mergeCells(`E${dr.number}:H${dr.number}`);
-      const titleCellRow = worksheet.getCell(`A${dr.number}`);
-      const detailCellRow = worksheet.getCell(`E${dr.number}`);
-      titleCellRow.font = { bold: true };
-      [titleCellRow, detailCellRow].forEach(c => {
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
-        c.border = THIN_BORDER;
-        c.alignment = { wrapText: true, vertical: 'top' };
-      });
-      worksheet.getRow(dr.number).height = COMPACT_ROW_HEIGHT + 4;
+      // Fila para el valor de la responsabilidad
+      const valueRow = worksheet.addRow([rp.value || 'N/A', '', '', '', '', '', '', '']);
+      worksheet.mergeCells(`A${valueRow.number}:D${valueRow.number}`);
+      const valueLabelCell = valueRow.getCell(1);
+      valueLabelCell.font = { bold: true };
+      valueLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      valueLabelCell.border = THIN_BORDER;
+      valueLabelCell.alignment = { wrapText: true, vertical: 'top' };
+      for (let cc = 1; cc <= 4; cc++) {
+        const cell = valueRow.getCell(cc);
+        cell.border = THIN_BORDER;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      }
+      const valueLines = estimateLinesForText(rp.value, worksheet.getColumn(1).width);
+      worksheet.getRow(valueRow.number).height = Math.max(20, valueLines * LINE_HEIGHT);
+
+      // Fila para la función
+      const funcionRow = worksheet.addRow(['', '', '', '', rp.funcion || 'N/A', '', '', '']);
+      worksheet.mergeCells(`E${funcionRow.number}:H${funcionRow.number}`);
+      const funcionCell = funcionRow.getCell(5);
+      funcionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      funcionCell.border = THIN_BORDER;
+      funcionCell.alignment = { wrapText: true, vertical: 'top' };
+      for (let cc = 1; cc <= 4; cc++) {
+        const cell = funcionRow.getCell(cc);
+        cell.border = THIN_BORDER;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_LIGHT } };
+      }
+      const funcionLines = estimateLinesForText(rp.funcion, worksheet.getColumn(5).width * 4);
+      worksheet.getRow(funcionRow.number).height = Math.max(20, funcionLines * LINE_HEIGHT);
     });
   }
 
@@ -533,6 +559,7 @@ export const generateExcelAttachment = async (formData, workflow_id) => {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 };
+
 
 const generateHtmlCorreo = (formData, approvalLink, rejectionLink, title) => {
   return `
