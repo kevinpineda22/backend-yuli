@@ -10,6 +10,36 @@ const fieldMapping = {
   seguridad: 'seguridad'
 };
 
+// Mapeo de correos a nombres (debe coincidir con formCreationController.js)
+const correoANombre = {
+  "sistemas@merkahorrosas.com": "Yonatan Valencia (Coordinador Sistemas)",
+  "gestionhumanamerkahorro@gmail.com": "Yuliana Garcia (Gestion Humana)",
+  "compras@merkahorrosas.com": "Julian Hurtado (Coordinador Estrategico de Compras)",
+  "logistica@merkahorrosas.com": "Dorancy (Coordinadora Logistica)",
+  "desarrollo@merkahorrosas.com": "Kevin Pineda (Analista Especializado en Desarrollo de Software)",
+  "operaciones@merkahorrosas.com": "Ramiro Hincapie",
+  "contabilidad1@merkahorrosas.com": "Ana Herrera",
+  "gestionhumana@merkahorrosas.com": "Yuliana Garcia",
+  "gerencia@merkahorrosas.com": "Diego Salazar",
+  "gerencia1@merkahorrosas.com": "Stiven Salazar",
+  "gerencia@megamayoristas.com": "Adrian Hoyos",
+  "gerencia@construahorrosas.com": "William Salazar",
+  "Comercialconstruahorro@merkahorrosas.com": "Jaiber (Director Comercial Construahorro)",
+  "juanmerkahorro@gmail.com": "Juan (Director Comercial Construahorro)",
+  "johanmerkahorro777@gmail.com": "Johan (Gerencia Construahorro)",
+  "catherinem.asisge@gmail.com": "Catherine (Seguridad y Salud en el Trabajo)",
+  "analista@merkahorrosas.com": "Anny Solarte (Calidad)",
+};
+
+// Validar destinatario del correo
+const validateEmailRecipient = (recipient, formType) => {
+  if (!recipient || !correoANombre[recipient]) {
+    console.error(`Destinatario no válido para ${formType}:`, recipient);
+    return { valid: false, error: `El campo ${formType} debe ser un correo electrónico válido` };
+  }
+  return { valid: true };
+};
+
 export const respuestaArea = async (req, res) => {
   try {
     const { workflow_id } = req.params;
@@ -127,66 +157,6 @@ export const respuestaDirector = async (req, res) => {
     res.json({ message: "Decisión del director registrada y correo enviado a gerencia" });
   } catch (err) {
     console.error("Error en respuestaDirector:", err);
-    res.status(500).json({ error: err.message || "Error interno del servidor" });
-  }
-};
-
-export const respuestaGerencia = async (req, res) => {
-  try {
-    const { workflow_id } = req.params;
-    const { decision, observacion } = req.body;
-
-    console.log("Iniciando respuestaGerencia para workflow_id:", workflow_id);
-    console.log("Datos recibidos:", { decision, observacion });
-
-    const { data: formRecord, error: fetchError } = await supabase
-      .from("yuli")
-      .select("*")
-      .eq("workflow_id", workflow_id)
-      .single();
-
-    if (fetchError) {
-      console.error("Error al obtener el registro:", fetchError);
-      return res.status(500).json({ error: "Error al obtener el registro" });
-    }
-
-    if (formRecord.estado !== "aprobado por director") {
-      return res.status(400).json({
-        error: `El director aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'`,
-      });
-    }
-
-    if (decision === "rechazado") {
-      await supabase
-        .from("yuli")
-        .update({
-          estado: `rechazado por gerencia (${formRecord[fieldMapping.gerencia]})`,
-          observacion_gerencia: observacion || "",
-        })
-        .eq("workflow_id", workflow_id);
-
-      return res.json({ message: "Formulario rechazado por gerencia" });
-    }
-
-    await supabase
-      .from("yuli")
-      .update({
-        estado: "aprobado por gerencia",
-        observacion_gerencia: observacion || "",
-      })
-      .eq("workflow_id", workflow_id);
-
-    const emailData = await generarHtmlCorreoCalidad({
-      ...formRecord,
-      approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/calidad`,
-      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/calidad`,
-    });
-
-    await sendEmail(formRecord[fieldMapping.calidad], "Solicitud de Aprobación - Calidad", emailData.html, emailData.attachments);
-
-    res.json({ message: "Decisión de gerencia registrada y correo enviado a Calidad" });
-  } catch (err) {
-    console.error("Error en respuestaGerencia:", err);
     res.status(500).json({ error: err.message || "Error interno del servidor" });
   }
 };
