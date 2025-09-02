@@ -161,6 +161,66 @@ export const respuestaDirector = async (req, res) => {
   }
 };
 
+export const respuestaGerencia = async (req, res) => {
+  try {
+    const { workflow_id } = req.params;
+    const { decision, observacion } = req.body;
+
+    console.log("Iniciando respuestaGerencia para workflow_id:", workflow_id);
+    console.log("Datos recibidos:", { decision, observacion });
+
+    const { data: formRecord, error: fetchError } = await supabase
+      .from("yuli")
+      .select("*")
+      .eq("workflow_id", workflow_id)
+      .single();
+
+    if (fetchError) {
+      console.error("Error al obtener el registro:", fetchError);
+      return res.status(500).json({ error: "Error al obtener el registro" });
+    }
+
+    if (formRecord.estado !== "aprobado por director") {
+      return res.status(400).json({
+        error: `El director aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'`,
+      });
+    }
+
+    if (decision === "rechazado") {
+      await supabase
+        .from("yuli")
+        .update({
+          estado: `rechazado por gerencia (${formRecord[fieldMapping.gerencia]})`,
+          observacion_gerencia: observacion || "",
+        })
+        .eq("workflow_id", workflow_id);
+
+      return res.json({ message: "Formulario rechazado por gerencia" });
+    }
+
+    await supabase
+      .from("yuli")
+      .update({
+        estado: "aprobado por gerencia",
+        observacion_gerencia: observacion || "",
+      })
+      .eq("workflow_id", workflow_id);
+
+    const emailData = await generarHtmlCorreoCalidad({
+      ...formRecord,
+      approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/calidad`,
+      rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/calidad`,
+    });
+
+    await sendEmail(formRecord[fieldMapping.calidad], "Solicitud de Aprobación - Calidad", emailData.html, emailData.attachments);
+
+    res.json({ message: "Decisión de gerencia registrada y correo enviado a Calidad" });
+  } catch (err) {
+    console.error("Error en respuestaGerencia:", err);
+    res.status(500).json({ error: err.message || "Error interno del servidor" });
+  }
+};
+
 export const respuestaCalidad = async (req, res) => {
   try {
     const { workflow_id } = req.params;
