@@ -1,4 +1,4 @@
-import { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia, generarHtmlCorreoSeguridad, generarHtmlCorreoCalidad, generarHtmlCorreoFinal } from '../services/emailService.js';
+import { sendEmail, generarHtmlCorreoDirector, generarHtmlCorreoGerencia, generarHtmlCorreoSeguridad, generarHtmlCorreoCalidad } from '../services/emailService.js';
 import supabase from '../supabaseCliente.js';
 
 const fieldMapping = {
@@ -77,7 +77,6 @@ export const respuestaArea = async (req, res) => {
             return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de área" });
         }
         
-        // Verifica si ya fue aprobado o rechazado en esta etapa
         if (formRecord.etapas_aprobadas.includes('area')) {
             return res.status(400).json({ error: "La solicitud ya fue aprobada por el área." });
         }
@@ -89,7 +88,6 @@ export const respuestaArea = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.area]})`;
         } else {
-            // Lógica para Merkahorro: Siguiente etapa es Director
             newEstado = `pendiente por director (${formRecord.director})`;
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
@@ -131,8 +129,7 @@ export const respuestaDirector = async (req, res) => {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
 
-        // Determinar el estado esperado dinámicamente
-        const expectedEstado = formRecord.isConstruahorro ? `Pendiente por Director (${formRecord.director})` : `pendiente por director (${formRecord.director})`;
+        const expectedEstado = formRecord.isConstruahorro ? `pendiente por director (${formRecord.director})` : `pendiente por director (${formRecord.director})`;
         
         if (formRecord.estado !== expectedEstado) {
             return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
@@ -149,7 +146,6 @@ export const respuestaDirector = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.director]})`;
         } else {
-            // Siguiente etapa: Gerencia
             newEstado = `pendiente por gerencia (${formRecord.gerencia})`;
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
@@ -207,7 +203,6 @@ export const respuestaGerencia = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.gerencia]})`;
         } else {
-            // Siguiente etapa: Calidad
             newEstado = `pendiente por calidad (${formRecord.calidad})`;
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
@@ -265,7 +260,6 @@ export const respuestaCalidad = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.calidad]})`;
         } else {
-            // Siguiente etapa: Seguridad
             newEstado = `pendiente por seguridad (${formRecord.seguridad})`;
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
@@ -341,10 +335,6 @@ export const respuestaSeguridad = async (req, res) => {
             })
             .eq("workflow_id", workflow_id);
         
-        // Lógica de correo de resultado final (aprobado o rechazado)
-        const emailData = await generarHtmlCorreoFinal({ ...formRecord, decision: newEstado });
-        await sendEmail(formRecord.creador, `Solicitud de Perfil de Cargo ${newEstado}`, emailData.html);
-
         res.json({ message: `Formulario ${newEstado}` });
     } catch (err) {
         console.error("Error en respuestaSeguridad:", err);
