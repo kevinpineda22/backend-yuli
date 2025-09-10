@@ -10,6 +10,7 @@ const fieldMapping = {
     seguridad: 'seguridad'
 };
 
+// Mapeo de correos a nombres (debe coincidir con formCreationController.js)
 const correoANombre = {
     "sistemas@merkahorrosas.com": "Yonatan Valencia (Coordinador Sistemas)",
     "gestionhumanamerkahorro@gmail.com": "Yuliana Garcia (Gestion Humana)",
@@ -30,6 +31,7 @@ const correoANombre = {
     "analista@merkahorrosas.com": "Anny Solarte (Calidad)",
 };
 
+// Validar destinatario del correo
 const validateEmailRecipient = (recipient, formType) => {
     if (!recipient || !correoANombre[recipient]) {
         console.error(`Destinatario no válido para ${formType}:`, recipient);
@@ -38,6 +40,7 @@ const validateEmailRecipient = (recipient, formType) => {
     return { valid: true };
 };
 
+// Obtiene los datos del registro y parsea las etapas
 const getFormRecord = async (workflow_id) => {
     const { data: formRecord, error } = await supabase
         .from("yuli")
@@ -50,6 +53,7 @@ const getFormRecord = async (workflow_id) => {
         return { formRecord: null, error };
     }
 
+    // Asegura que etapas_aprobadas sea un array
     if (formRecord.etapas_aprobadas) {
         try {
             formRecord.etapas_aprobadas = Array.isArray(formRecord.etapas_aprobadas) ? formRecord.etapas_aprobadas : JSON.parse(formRecord.etapas_aprobadas);
@@ -76,19 +80,17 @@ export const respuestaArea = async (req, res) => {
         if (formRecord[fieldMapping.isConstruahorro]) {
             return res.status(400).json({ error: "Esta solicitud es de Construahorro y no requiere aprobación de área" });
         }
-        
-        if (formRecord.etapas_aprobadas.includes('area')) {
-            return res.status(400).json({ error: "La solicitud ya fue aprobada por el área." });
+        if (formRecord.estado !== "pendiente por area") {
+            return res.status(400).json({ error: `Estado inválido. Se esperaba 'pendiente por area', pero se encontró '${formRecord.estado}'` });
         }
 
-        let newEstado;
-        let newEtapasAprobadas = formRecord.etapas_aprobadas;
+        let newEstado, newEtapasAprobadas = formRecord.etapas_aprobadas;
         const currentEtapa = 'area';
 
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.area]})`;
         } else {
-            newEstado = `pendiente por director (${formRecord.director})`;
+            newEstado = "aprobado por area";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -129,24 +131,18 @@ export const respuestaDirector = async (req, res) => {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
 
-        const expectedEstado = formRecord.isConstruahorro ? `pendiente por director (${formRecord.director})` : `pendiente por director (${formRecord.director})`;
-        
+        const expectedEstado = formRecord[fieldMapping.isConstruahorro] ? "pendiente por director" : "aprobado por area";
         if (formRecord.estado !== expectedEstado) {
             return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
         }
-        
-        if (formRecord.etapas_aprobadas.includes('director')) {
-            return res.status(400).json({ error: "La solicitud ya fue aprobada por el director." });
-        }
 
-        let newEstado;
-        let newEtapasAprobadas = formRecord.etapas_aprobadas;
+        let newEstado, newEtapasAprobadas = formRecord.etapas_aprobadas;
         const currentEtapa = 'director';
 
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.director]})`;
         } else {
-            newEstado = `pendiente por gerencia (${formRecord.gerencia})`;
+            newEstado = "aprobado por director";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -186,24 +182,17 @@ export const respuestaGerencia = async (req, res) => {
         if (fetchError) {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
-        
-        const expectedEstado = `pendiente por gerencia (${formRecord.gerencia})`;
-        if (formRecord.estado !== expectedEstado) {
-            return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
+        if (formRecord.estado !== "aprobado por director") {
+            return res.status(400).json({ error: `El director aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'` });
         }
 
-        if (formRecord.etapas_aprobadas.includes('gerencia')) {
-            return res.status(400).json({ error: "La solicitud ya fue aprobada por gerencia." });
-        }
-
-        let newEstado;
-        let newEtapasAprobadas = formRecord.etapas_aprobadas;
+        let newEstado, newEtapasAprobadas = formRecord.etapas_aprobadas;
         const currentEtapa = 'gerencia';
 
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.gerencia]})`;
         } else {
-            newEstado = `pendiente por calidad (${formRecord.calidad})`;
+            newEstado = "aprobado por gerencia";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -243,24 +232,20 @@ export const respuestaCalidad = async (req, res) => {
         if (fetchError) {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
-        
-        const expectedEstado = `pendiente por calidad (${formRecord.calidad})`;
-        if (formRecord.estado !== expectedEstado) {
-            return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
+        if (formRecord.estado !== "aprobado por gerencia") {
+            return res.status(400).json({ error: `Gerencia aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'` });
+        }
+        if (!['aprobado', 'rechazado'].includes(decision)) {
+            return res.status(400).json({ error: "Decisión no válida. Debe ser 'aprobado' o 'rechazado'" });
         }
 
-        if (formRecord.etapas_aprobadas.includes('calidad')) {
-            return res.status(400).json({ error: "La solicitud ya fue aprobada por calidad." });
-        }
-
-        let newEstado;
-        let newEtapasAprobadas = formRecord.etapas_aprobadas;
+        let newEstado, newEtapasAprobadas = formRecord.etapas_aprobadas;
         const currentEtapa = 'calidad';
 
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${formRecord[fieldMapping.calidad]})`;
         } else {
-            newEstado = `pendiente por seguridad (${formRecord.seguridad})`;
+            newEstado = "pendiente por seguridad";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -274,9 +259,11 @@ export const respuestaCalidad = async (req, res) => {
             .eq("workflow_id", workflow_id);
 
         if (decision === "rechazado") {
+            // Lógica de correo de rechazo
             return res.json({ message: "Formulario rechazado por calidad" });
         }
 
+        // Lógica de correo a Seguridad
         const seguridadValidation = validateEmailRecipient(formRecord[fieldMapping.seguridad], 'seguridad');
         if (!seguridadValidation.valid) {
             return res.status(400).json({ error: seguridadValidation.error });
@@ -296,6 +283,7 @@ export const respuestaCalidad = async (req, res) => {
     }
 };
 
+
 export const respuestaSeguridad = async (req, res) => {
     try {
         const { workflow_id } = req.params;
@@ -305,18 +293,14 @@ export const respuestaSeguridad = async (req, res) => {
         if (fetchError) {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
-        
-        const expectedEstado = `pendiente por seguridad (${formRecord.seguridad})`;
-        if (formRecord.estado !== expectedEstado) {
+        if (formRecord.estado !== "pendiente por seguridad") {
             return res.status(400).json({ error: `Estado inválido. Se esperaba 'pendiente por seguridad', pero se encontró '${formRecord.estado}'` });
         }
-        
-        if (formRecord.etapas_aprobadas.includes('seguridad')) {
-            return res.status(400).json({ error: "La solicitud ya fue aprobada por seguridad." });
+        if (!['aprobado', 'rechazado'].includes(decision)) {
+            return res.status(400).json({ error: "Decisión no válida. Debe ser 'aprobado' o 'rechazado'" });
         }
 
-        let newEstado;
-        let newEtapasAprobadas = formRecord.etapas_aprobadas;
+        let newEstado, newEtapasAprobadas = formRecord.etapas_aprobadas;
         const currentEtapa = 'seguridad';
         
         if (decision === "rechazado") {
@@ -334,7 +318,8 @@ export const respuestaSeguridad = async (req, res) => {
                 etapas_aprobadas: newEtapasAprobadas
             })
             .eq("workflow_id", workflow_id);
-        
+
+        // Lógica de correo de resultado final
         res.json({ message: `Formulario ${newEstado}` });
     } catch (err) {
         console.error("Error en respuestaSeguridad:", err);
