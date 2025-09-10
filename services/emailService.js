@@ -622,4 +622,4 @@ export const generarHtmlCorreoSeguridad = async (formData) => {
     const html = generateHtmlCorreo(formData, formData.approvalLink, formData.rejectionLink, 'Solicitud de Aprobación - Seguridad y Salud en el Trabajo');
     const excelAttachment = await generateExcelAttachment(formData, formData.workflow_id);
     return { html, attachments: [excelAttachment] };
-};
+};  
