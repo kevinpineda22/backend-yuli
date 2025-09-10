@@ -73,7 +73,7 @@ const correoANombre = {
 const parseJSONFields = (data) => {
     const newData = { ...data };
     const jsonFields = [
-        'poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 
+        'poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo',
         'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'
     ];
     try {
@@ -416,6 +416,8 @@ export const reenviarFormulario = async (req, res) => {
             observacion_gerencia: null,
             observacion_calidad: null,
             observacion_seguridad: null,
+
+            etapas_aprobadas: [], // <-- AGREGA ESTA LÍNEA
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
         };
 
