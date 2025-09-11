@@ -13,7 +13,7 @@ const fieldMapping = {
     estructuraOrganizacional: 'estructuraorganizacional',
     poblacionFocalizada: 'poblacionfocalizada',
     escolaridad: 'escolaridad',
-    areaFormacion: 'area_formacion', // Corregido de area_formacion a areaFormacion
+    areaFormacion: 'area_formacion', // Corregido: 'areaFormacion' en frontend se mapea a 'area_formacion' en backend
     estudiosComplementarios: 'estudioscomplementarios',
     experiencia: 'experiencia',
     jefeInmediato: 'jefeinmediato',
@@ -35,7 +35,7 @@ const fieldMapping = {
     seguridad: 'seguridad',
     area: 'area',
     isConstruahorro: 'isConstruahorro',
-    isMegamayoristas: 'isMegamayoristas', // Agregado el mapeo de Megamayoristas
+    isMegamayoristas: 'isMegamayoristas',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
@@ -49,7 +49,6 @@ const fieldMapping = {
     competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso',
 };
 
-// Mapeo de correos a nombres para personalizar los correos
 const correoANombre = {
     "sistemas@merkahorrosas.com": "Yonatan Valencia (Coordinador Sistemas)",
     "gestionhumanamerkahorro@gmail.com": "Yuliana Garcia (Gestion Humana)",
@@ -72,7 +71,6 @@ const correoANombre = {
     "comercial@megamayoristas.com": "Comercial Megamayoristas",
 };
 
-// Función auxiliar para parsear los campos JSON del body a objetos de JS
 const parseJSONFields = (data) => {
     const newData = { ...data };
     const jsonFields = [
@@ -94,7 +92,6 @@ const parseJSONFields = (data) => {
     return newData;
 };
 
-// Función auxiliar para crear un objeto de datos consolidado para el email
 const createEmailData = (body, data) => {
     const parsedData = parseJSONFields(body);
     return {
@@ -115,7 +112,6 @@ const createEmailData = (body, data) => {
     };
 };
 
-// Validar destinatario del correo
 const validateEmailRecipient = (recipient, formType) => {
     if (!recipient || !correoANombre[recipient]) {
         console.error(`Destinatario no válido para ${formType}:`, recipient);
@@ -143,7 +139,6 @@ export const crearFormulario = async (req, res) => {
         const isConstruahorroForm = isConstruahorro === 'true';
         const isMegamayoristasForm = isMegamayoristas === 'true';
 
-        // Validar campos obligatorios
         const requiredFields = {
             fecha, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             escolaridad, areaFormacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
@@ -164,12 +159,12 @@ export const crearFormulario = async (req, res) => {
             requiredFields.seguridad = seguridad;
         }
 
-        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
-            requiredFields.estructuraOrganizacional = estructuraOrganizacional[0];
+        if (!req.files || !req.files.estructuraOrganizacional) {
+            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
-
+        
         for (const [key, value] of Object.entries(requiredFields)) {
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && Object.keys(value).length === 0)) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
@@ -178,7 +173,6 @@ export const crearFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si se requiere vehículo' });
         }
 
-        // Subir estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -193,11 +187,8 @@ export const crearFormulario = async (req, res) => {
 
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
-        } else {
-            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
-        // Mapear datos
         const formData = {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director || null,
@@ -214,7 +205,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion,
+            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -240,7 +231,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua,
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm || isMegamayoristasForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
@@ -249,7 +240,6 @@ export const crearFormulario = async (req, res) => {
             role: 'creador',
         };
 
-        // Insertar en Supabase
         const { data, error } = await supabase
             .from('yuli')
             .insert(formData)
@@ -264,27 +254,22 @@ export const crearFormulario = async (req, res) => {
         const workflow_id = data.id;
         await supabase.from('yuli').update({ workflow_id }).eq('id', workflow_id);
 
-        // Preparar datos para el correo
         const emailData = createEmailData(req.body, data);
-        const emailRecipient = isConstruahorroForm ? director : area;
-        const emailSubject = isConstruahorroForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
+        const emailRecipient = isConstruahorroForm || isMegamayoristasForm ? director : area;
+        const emailSubject = isConstruahorroForm || isMegamayoristasForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
 
-        // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
         if (!validation.valid) {
-            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', data);
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailHtml = await (isConstruahorroForm
+        const emailHtml = await (isConstruahorroForm || isMegamayoristasForm
             ? generarHtmlCorreoDirector({ ...emailData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
             : generarHtmlCorreoArea({ ...emailData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
 
-        // Enviar correo
-        console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailHtml.html, emailHtml.attachments);
 
-        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}`, workflow_id });
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}`, workflow_id });
     } catch (err) {
         console.error("Error en crearFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -308,7 +293,6 @@ export const reenviarFormulario = async (req, res) => {
 
         const { estructuraOrganizacional } = req.files || {};
 
-        // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error: fetchError } = await supabase
             .from('yuli')
             .select('*')
@@ -323,7 +307,6 @@ export const reenviarFormulario = async (req, res) => {
         const isConstruahorroForm = solicitud.isConstruahorro;
         const isMegamayoristasForm = solicitud.isMegamayoristas;
 
-        // Validar campos obligatorios
         const requiredFields = {
             fecha, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             escolaridad, areaFormacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
@@ -344,12 +327,8 @@ export const reenviarFormulario = async (req, res) => {
             requiredFields.seguridad = seguridad;
         }
 
-        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
-            requiredFields.estructuraOrganizacional = estructuraOrganizacional[0];
-        }
-
         for (const [key, value] of Object.entries(requiredFields)) {
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && Object.keys(value).length === 0)) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
@@ -358,7 +337,6 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si se requiere vehículo' });
         }
 
-        // Subir estructura organizacional
         let estructuraOrganizacionalUrl = solicitud.estructuraorganizacional;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -375,7 +353,6 @@ export const reenviarFormulario = async (req, res) => {
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
         }
 
-        // Mapear datos
         const updates = {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director || null,
@@ -392,7 +369,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion,
+            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -418,7 +395,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua,
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm || isMegamayoristasForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
@@ -427,7 +404,6 @@ export const reenviarFormulario = async (req, res) => {
             etapas_aprobadas: [],
         };
 
-        // Actualizar la solicitud en Supabase
         const { data: updated, error: updateError } = await supabase
             .from('yuli')
             .update(updates)
@@ -440,27 +416,20 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
-        // Determinar el destinatario del correo
-        const emailRecipient = isConstruahorroForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
-
-        // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        const emailRecipient = isConstruahorroForm || isMegamayoristasForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
         if (!validation.valid) {
-            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailSubject = isConstruahorroForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-
-        const emailHtml = await (isConstruahorroForm
+        const emailSubject = isConstruahorroForm || isMegamayoristasForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
+        const emailHtml = await (isConstruahorroForm || isMegamayoristasForm
             ? generarHtmlCorreoDirector({ ...updated, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
             : generarHtmlCorreoArea({ ...updated, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
 
-        // Enviar el correo
-        console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailHtml.html, emailHtml.attachments);
 
-        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}` });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
@@ -484,7 +453,6 @@ export const actualizarFormulario = async (req, res) => {
 
         const { estructuraOrganizacional } = req.files || {};
 
-        // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error: fetchError } = await supabase
             .from('yuli')
             .select('*')
@@ -499,7 +467,6 @@ export const actualizarFormulario = async (req, res) => {
         const isConstruahorroForm = solicitud.isConstruahorro;
         const isMegamayoristasForm = solicitud.isMegamayoristas;
 
-        // Validar campos obligatorios
         const requiredFields = {
             fecha, gerencia, nombreCargo, areaGeneral, departamento, proceso,
             escolaridad, areaFormacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
@@ -520,11 +487,16 @@ export const actualizarFormulario = async (req, res) => {
             requiredFields.seguridad = seguridad;
         }
 
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && Object.keys(value).length === 0)) {
+                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+            }
+        }
+
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si se requiere vehículo' });
         }
 
-        // Subir estructura organizacional (si se proporciona una nueva)
         let estructuraOrganizacionalUrl = solicitud.estructuraorganizacional;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -539,8 +511,6 @@ export const actualizarFormulario = async (req, res) => {
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
         }
 
-
-        // Mapear datos
         const updateFields = {
             [fieldMapping.fecha]: fecha,
             [fieldMapping.director]: director || null,
@@ -557,7 +527,7 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion,
+            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -585,7 +555,6 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
         };
 
-        // Actualizar en Supabase
         const { data, error } = await supabase
             .from('yuli')
             .update(updateFields)
@@ -610,7 +579,6 @@ export const decision = async (req, res) => {
         const { id, role } = req.params;
         const { decision, observacion } = req.body;
 
-        // Log de la decisión recibida
         console.log('Procesando decisión:', { id, role, decision, observacion });
 
         if (!['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(role)) {
@@ -623,7 +591,6 @@ export const decision = async (req, res) => {
             return res.status(400).json({ error: 'Decisión no válida' });
         }
 
-        // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error } = await supabase
             .from('yuli')
             .select('*')
@@ -635,22 +602,18 @@ export const decision = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        // Log adicional para depurar el estado y el campo seguridad
         console.log('Solicitud obtenida:', {
             id: solicitud.id,
             estado: solicitud.estado,
-            isConstruahorro: solicitud[fieldMapping.isConstruahorro],
+            isConstruahorro: solicitud.isConstruahorro,
             isMegamayoristas: solicitud.isMegamayoristas,
-            seguridad: solicitud[fieldMapping.seguridad],
-            area: solicitud[fieldMapping.area],
-            director: solicitud[fieldMapping.director],
+            seguridad: solicitud.seguridad,
+            area: solicitud.area,
+            director: solicitud.director,
         });
 
         const isConstruahorro = solicitud.isConstruahorro;
         const isMegamayoristas = solicitud.isMegamayoristas;
-        const hasCalidad = !isMegamayoristas;
-        const hasSeguridad = !isMegamayoristas;
-        const hasArea = !isConstruahorro && !isMegamayoristas;
 
         let updateFields = {};
         let nextEmailRecipient = null;
@@ -664,13 +627,11 @@ export const decision = async (req, res) => {
                 [`observacion_${role}`]: observacion || null,
                 estado: finalStatus,
             };
-            // No se envía correo de reenvío si es rechazado, se notifica al creador
             const creatorEmail = isConstruahorro ? solicitud.director : isMegamayoristas ? solicitud.director : solicitud.area;
             const creatorName = correoANombre[creatorEmail] || 'el creador';
             emailSubject = `Solicitud ${solicitud.id} ha sido rechazada`;
             emailHtml = `<h2>Solicitud de Perfil de Cargo #${solicitud.id}</h2><p>La solicitud para el cargo <strong>${solicitud.nombrecargo}</strong> ha sido rechazada por el rol de ${role}.</p>${observacion ? `<p><strong>Observación de ${role}:</strong> ${observacion}</p>` : ''}<p><a href="https://www.merkahorro.com/dgdecision/${solicitud.id}/view">Ver solicitud</a></p>`;
             await sendEmail(creatorEmail, emailSubject, emailHtml, []);
-
         } else if (decision === 'aprobar') {
             updateFields = {
                 [`observacion_${role}`]: observacion || null,
@@ -681,7 +642,7 @@ export const decision = async (req, res) => {
                 updateFields.estado = `pendiente por ${nextStep.role}`;
                 nextEmailRecipient = solicitud[fieldMapping[nextStep.role]];
                 emailSubject = `Nueva Solicitud de Aprobación - ${nextStep.role}`;
-                emailHtml = nextStep.htmlGenerator({
+                emailHtml = await nextStep.htmlGenerator({
                     ...solicitud,
                     workflow_id: solicitud.id,
                     approvalLink: `https://www.merkahorro.com/dgdecision/${solicitud.id}/${nextStep.role}`,
@@ -698,7 +659,6 @@ export const decision = async (req, res) => {
              return res.status(400).json({ error: 'Decisión no válida' });
         }
 
-        // Actualizar en Supabase
         const { error: updateError } = await supabase
             .from('yuli')
             .update(updateFields)
@@ -709,7 +669,6 @@ export const decision = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
         
-        // Enviar correo si no fue un rechazo final
         if (decision === 'aprobar' && nextEmailRecipient && emailHtml) {
             await sendEmail(nextEmailRecipient, emailSubject, emailHtml.html, emailHtml.attachments);
         }
@@ -746,7 +705,7 @@ const getNextStep = (currentRole, isConstruahorro, isMegamayoristas, etapasAprob
             htmlGenerator: htmlGenerators[nextRole],
         };
     }
-    return null; // Última etapa, no hay siguiente paso
+    return null;
 };
 
 export const obtenerHistorial = async (req, res) => {
