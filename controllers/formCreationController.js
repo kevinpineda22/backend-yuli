@@ -13,7 +13,7 @@ const fieldMapping = {
     estructuraOrganizacional: 'estructuraorganizacional',
     poblacionFocalizada: 'poblacionfocalizada',
     escolaridad: 'escolaridad',
-    areaFormacion: 'area_formacion', // Corregido: 'areaFormacion' en frontend se mapea a 'area_formacion' en backend
+    areaFormacion: 'area_formacion',
     estudiosComplementarios: 'estudioscomplementarios',
     experiencia: 'experiencia',
     jefeInmediato: 'jefeinmediato',
@@ -53,7 +53,7 @@ const correoANombre = {
     "sistemas@merkahorrosas.com": "Yonatan Valencia (Coordinador Sistemas)",
     "gestionhumanamerkahorro@gmail.com": "Yuliana Garcia (Gestion Humana)",
     "compras@merkahorrosas.com": "Julian Hurtado (Coordinador Estrategico de Compras)",
-    "logistica@merkahorrosas.com": "Dorancy (Coordinadora Logistica)",
+    "logistica@merkahorrosas.com": "Dorancy (Coordinadora Logística)",
     "desarrollo@merkahorrosas.com": "Kevin Pineda (Analista Especializado en Desarrollo de Software)",
     "operaciones@merkahorrosas.com": "Ramiro Hincapie",
     "contabilidad1@merkahorrosas.com": "Ana Herrera",
@@ -145,14 +145,11 @@ export const crearFormulario = async (req, res) => {
             competenciasCulturales, competenciasCargo, responsabilidades,
         };
 
-        if (isMegamayoristasForm) {
-            requiredFields.area = area;
-            requiredFields.director = director;
-        } else if (isConstruahorroForm) {
+        if (isConstruahorroForm) {
             requiredFields.director = director;
             requiredFields.calidad = calidad;
             requiredFields.seguridad = seguridad;
-        } else {
+        } else { // Merkahorro y Megamayoristas
             requiredFields.area = area;
             requiredFields.director = director;
             requiredFields.calidad = calidad;
@@ -168,7 +165,7 @@ export const crearFormulario = async (req, res) => {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
-
+        
         if (requiereVehiculo === 'Sí' && !tipoLicencia) {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si se requiere vehículo' });
         }
@@ -205,7 +202,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
+            [fieldMapping.areaFormacion]: areaFormacion,
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -316,6 +313,8 @@ export const reenviarFormulario = async (req, res) => {
         if (isMegamayoristasForm) {
             requiredFields.area = area;
             requiredFields.director = director;
+            requiredFields.calidad = calidad;
+            requiredFields.seguridad = seguridad;
         } else if (isConstruahorroForm) {
             requiredFields.director = director;
             requiredFields.calidad = calidad;
@@ -369,7 +368,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
+            [fieldMapping.areaFormacion]: areaFormacion,
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -476,6 +475,8 @@ export const actualizarFormulario = async (req, res) => {
         if (isMegamayoristasForm) {
             requiredFields.area = area;
             requiredFields.director = director;
+            requiredFields.calidad = calidad;
+            requiredFields.seguridad = seguridad;
         } else if (isConstruahorroForm) {
             requiredFields.director = director;
             requiredFields.calidad = calidad;
@@ -527,7 +528,7 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             [fieldMapping.poblacionFocalizada]: poblacionFocalizada || [],
             [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.areaFormacion]: areaFormacion, // CORREGIDO
+            [fieldMapping.areaFormacion]: areaFormacion,
             [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
             [fieldMapping.experiencia]: experiencia,
             [fieldMapping.jefeInmediato]: jefeInmediato,
@@ -682,7 +683,7 @@ export const decision = async (req, res) => {
 
 const getNextStep = (currentRole, isConstruahorro, isMegamayoristas, etapasAprobadas) => {
     const approvalOrder = isMegamayoristas
-        ? ['area', 'director', 'gerencia']
+        ? ['area', 'director', 'gerencia', 'calidad', 'seguridad'] // CORRECCIÓN: Megamayoristas ahora tiene todas las etapas
         : isConstruahorro
             ? ['director', 'gerencia', 'calidad', 'seguridad']
             : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
@@ -727,7 +728,7 @@ export const obtenerHistorial = async (req, res) => {
             const baseEstado = item.estado.includes('pendiente') ? `pendiente por ${item.estado.split(' ')[2]}` : item.estado;
             const estadoDisplay = baseEstado;
             const approvalSteps = isMegamayoristas
-                ? ['area', 'director', 'gerencia']
+                ? ['area', 'director', 'gerencia', 'calidad', 'seguridad'] // CORRECCIÓN: Megamayoristas ahora tiene todas las etapas
                 : isConstruahorro
                     ? ['director', 'gerencia', 'calidad', 'seguridad']
                     : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
