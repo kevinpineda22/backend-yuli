@@ -77,24 +77,31 @@ const approvalFlow = {
     megamayoristas: ['area', 'director', 'gerencia', 'calidad', 'seguridad'],
 };
 
+// Nueva función mejorada para parsear JSON de forma segura
+const safeJSONParse = (data) => {
+    if (!data || typeof data !== 'string') {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+        // Si falla el parseo, asumimos que es texto simple y lo devolvemos en un array
+        return [data];
+    }
+};
+
 const parseJSONFields = (data) => {
     const newData = { ...data };
     const jsonFields = [
         'poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo',
         'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'
     ];
-    try {
-        jsonFields.forEach(field => {
-            if (newData[field] && typeof newData[field] === 'string') {
-                newData[field] = JSON.parse(newData[field]);
-            }
-        });
-    } catch (e) {
-        console.error("Error al parsear JSON en el controlador:", e);
-        jsonFields.forEach(field => {
-            newData[field] = [];
-        });
-    }
+    jsonFields.forEach(field => {
+        if (newData[field]) {
+            newData[field] = safeJSONParse(newData[field]);
+        }
+    });
     return newData;
 };
 
