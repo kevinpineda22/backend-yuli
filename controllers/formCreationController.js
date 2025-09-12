@@ -228,7 +228,7 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua,
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorroForm || isMegamayoristasForm ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
@@ -252,21 +252,21 @@ export const crearFormulario = async (req, res) => {
         await supabase.from('yuli').update({ workflow_id }).eq('id', workflow_id);
 
         const emailData = createEmailData(req.body, data);
-        const emailRecipient = isConstruahorroForm || isMegamayoristasForm ? director : area;
-        const emailSubject = isConstruahorroForm || isMegamayoristasForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
+        const emailRecipient = isConstruahorroForm ? director : area;
+        const emailSubject = isConstruahorroForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
 
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
         if (!validation.valid) {
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailHtml = await (isConstruahorroForm || isMegamayoristasForm
+        const emailHtml = await (isConstruahorroForm
             ? generarHtmlCorreoDirector({ ...emailData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
             : generarHtmlCorreoArea({ ...emailData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
 
         await sendEmail(emailRecipient, emailSubject, emailHtml.html, emailHtml.attachments);
 
-        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}`, workflow_id });
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}`, workflow_id });
     } catch (err) {
         console.error("Error en crearFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -310,12 +310,7 @@ export const reenviarFormulario = async (req, res) => {
             competenciasCulturales, competenciasCargo, responsabilidades,
         };
 
-        if (isMegamayoristasForm) {
-            requiredFields.area = area;
-            requiredFields.director = director;
-            requiredFields.calidad = calidad;
-            requiredFields.seguridad = seguridad;
-        } else if (isConstruahorroForm) {
+        if (isConstruahorroForm) {
             requiredFields.director = director;
             requiredFields.calidad = calidad;
             requiredFields.seguridad = seguridad;
@@ -394,7 +389,7 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua,
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            estado: isConstruahorroForm || isMegamayoristasForm ? 'pendiente por director' : 'pendiente por area',
+            estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
             observacion_gerencia: null,
@@ -415,20 +410,20 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
-        const emailRecipient = isConstruahorroForm || isMegamayoristasForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
+        const emailRecipient = isConstruahorroForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
         if (!validation.valid) {
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailSubject = isConstruahorroForm || isMegamayoristasForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-        const emailHtml = await (isConstruahorroForm || isMegamayoristasForm
+        const emailSubject = isConstruahorroForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
+        const emailHtml = await (isConstruahorroForm
             ? generarHtmlCorreoDirector({ ...updated, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
             : generarHtmlCorreoArea({ ...updated, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
 
         await sendEmail(emailRecipient, emailSubject, emailHtml.html, emailHtml.attachments);
 
-        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}` });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
@@ -682,11 +677,9 @@ export const decision = async (req, res) => {
 };
 
 const getNextStep = (currentRole, isConstruahorro, isMegamayoristas, etapasAprobadas) => {
-    const approvalOrder = isMegamayoristas
-        ? ['area', 'director', 'gerencia', 'calidad', 'seguridad'] // CORRECCIÓN: Megamayoristas ahora tiene todas las etapas
-        : isConstruahorro
-            ? ['director', 'gerencia', 'calidad', 'seguridad']
-            : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
+    const approvalOrder = isConstruahorro
+        ? ['director', 'gerencia', 'calidad', 'seguridad']
+        : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
             
     const currentIndex = approvalOrder.indexOf(currentRole);
     if (currentIndex === -1) return null;
@@ -727,11 +720,9 @@ export const obtenerHistorial = async (req, res) => {
 
             const baseEstado = item.estado.includes('pendiente') ? `pendiente por ${item.estado.split(' ')[2]}` : item.estado;
             const estadoDisplay = baseEstado;
-            const approvalSteps = isMegamayoristas
-                ? ['area', 'director', 'gerencia', 'calidad', 'seguridad'] // CORRECCIÓN: Megamayoristas ahora tiene todas las etapas
-                : isConstruahorro
-                    ? ['director', 'gerencia', 'calidad', 'seguridad']
-                    : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
+            const approvalSteps = isConstruahorro
+                ? ['director', 'gerencia', 'calidad', 'seguridad']
+                : ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
 
             const etapasAprobadas = approvalSteps.filter(step => {
                 const stepEstado = item[`observacion_${step}`];
