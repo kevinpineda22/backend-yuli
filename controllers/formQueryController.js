@@ -1,6 +1,5 @@
 import supabase from '../supabaseCliente.js';
 
-// Mapeo de nombres de campos del frontend a columnas de la base de datos
 const fieldMapping = {
     nombreCargo: 'nombrecargo',
     areaGeneral: 'areageneral',
@@ -9,7 +8,7 @@ const fieldMapping = {
     estructuraOrganizacional: 'estructuraorganizacional',
     poblacionFocalizada: 'poblacionfocalizada',
     escolaridad: 'escolaridad',
-    area_formacion: 'area_formacion',
+    areaFormacion: 'area_formacion',
     estudiosComplementarios: 'estudioscomplementarios',
     experiencia: 'experiencia',
     jefeInmediato: 'jefeinmediato',
@@ -27,9 +26,12 @@ const fieldMapping = {
     fecha: 'fecha',
     director: 'director',
     gerencia: 'gerencia',
+    calidad: 'calidad',
     seguridad: 'seguridad',
     area: 'area',
+    company: 'company',
     isConstruahorro: 'isConstruahorro',
+    isMegamayoristas: 'isMegamayoristas',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
@@ -39,22 +41,18 @@ const fieldMapping = {
     competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso'
 };
 
-// Mapeo inverso para traducir de los nombres de la base de datos a los del frontend
 const inverseFieldMapping = Object.fromEntries(
     Object.entries(fieldMapping).map(([key, value]) => [value, key])
 );
 
-// Función auxiliar para procesar los datos
 const processData = (data) => {
     return data.map(item => {
         const newItem = {};
         for (const [dbKey, value] of Object.entries(item)) {
             const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
             
-            // Convertir los strings JSON a objetos de JavaScript para campos JSONb
             if (['competencias_culturales', 'competencias_cargo', 'responsabilidades', 'plan_entrenamiento', 'plan_capacitacion_continua'].includes(dbKey)) {
                 try {
-                    // Si el valor existe, se parsea. Si no, se devuelve un array vacío.
                     newItem[frontEndKey] = value ? JSON.parse(value) : [];
                 } catch (e) {
                     console.error(`Error al parsear JSONb para ${dbKey}:`, e);
@@ -74,7 +72,7 @@ export const obtenerHistorial = async (req, res) => {
         const { data, error } = await supabase
             .from('yuli')
             .select('*')
-            .eq('workflow_id', workflow_id)
+            .eq('id', workflow_id) // Cambiado a 'id'
             .order('created_at', { ascending: true });
 
         if (error) {
