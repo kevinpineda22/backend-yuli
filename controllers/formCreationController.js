@@ -35,6 +35,7 @@ const fieldMapping = {
     seguridad: 'seguridad',
     area: 'area',
     isConstruahorro: 'isConstruahorro',
+    isMegamayoristas: 'isMegamayoristas', // NUEVO
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
@@ -133,8 +134,8 @@ export const crearFormulario = async (req, res) => {
             indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
         } = req.body;
-
         const { estructuraOrganizacional } = req.files || {};
+        const { isMegamayoristas } = req.body; // NUEVO
 
         // Log del payload recibido
         console.log('Payload recibido en crearFormulario:', { isConstruahorro, director, area });
@@ -154,15 +155,22 @@ export const crearFormulario = async (req, res) => {
             }
         }
 
-        // Validar área solo para Merkahorro
+        // Validar área solo para Merkahorro y Megamayoristas
         const isConstruahorroForm = isConstruahorro === 'true';
-        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+        const isMegamayoristasForm = isMegamayoristas === 'true'; // NUEVO
+
+        if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
+            // Merkahorro: área es obligatoria
             console.error('Área no válida para Merkahorro:', area);
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
-
-        // Validar director para Construahorro
+        if (isMegamayoristasForm && (!director || !correoANombre[director])) {
+            // Megamayoristas: director es obligatorio
+            console.error('Director no válido para Megamayoristas:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
         if (isConstruahorroForm && (!director || !correoANombre[director])) {
+            // Construahorro: director es obligatorio
             console.error('Director no válido para Construahorro:', director);
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
@@ -240,6 +248,7 @@ export const crearFormulario = async (req, res) => {
             observacion_seguridad: null,
             role: 'creador',
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
+            [fieldMapping.isMegamayoristas]: isMegamayoristasForm, // NUEVO
             etapas_aprobadas: [], // Agregar etapas_aprobadas como un array vacío
         };
 
@@ -260,25 +269,50 @@ export const crearFormulario = async (req, res) => {
 
         // Preparar datos para el correo
         const emailFormData = createEmailData(req.body, data);
-        const emailRecipient = isConstruahorroForm ? director : area;
-        const emailSubject = isConstruahorroForm ? "Nueva Solicitud de Aprobación - Director" : "Nueva Solicitud de Aprobación - Área";
+
+        // Determinar destinatario y asunto según tipo de formulario
+        let emailRecipient, emailSubject;
+        if (isConstruahorroForm) {
+            emailRecipient = director;
+            emailSubject = "Nueva Solicitud de Aprobación - Director";
+        } else if (isMegamayoristasForm) {
+            emailRecipient = director;
+            emailSubject = "Nueva Solicitud de Aprobación - Director";
+        } else {
+            emailRecipient = area;
+            emailSubject = "Nueva Solicitud de Aprobación - Área";
+        }
 
         // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
         if (!validation.valid) {
             console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', data);
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailData = await (isConstruahorroForm
-            ? generarHtmlCorreoDirector({ ...emailFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director` })
-            : generarHtmlCorreoArea({ ...emailFormData, workflow_id, approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area` }));
+        // Generar HTML correo según tipo
+        let emailData;
+        if (isConstruahorroForm || isMegamayoristasForm) {
+            emailData = await generarHtmlCorreoDirector({
+                ...emailFormData,
+                workflow_id,
+                approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
+                rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
+            });
+        } else {
+            emailData = await generarHtmlCorreoArea({
+                ...emailFormData,
+                workflow_id,
+                approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
+                rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
+            });
+        }
 
         // Enviar correo
         console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}`, workflow_id });
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}`, workflow_id });
     } catch (err) {
         console.error("Error en crearFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -299,6 +333,7 @@ export const reenviarFormulario = async (req, res) => {
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
+        const { isMegamayoristas } = req.body; // NUEVO
 
         // Log del payload recibido
         console.log('Payload recibido en reenviarFormulario:', { id, isConstruahorro, director, area });
@@ -315,8 +350,9 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        // Usar isConstruahorro del registro en Supabase como fuente principal
+        // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
+        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
         console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
 
         // Validar campos obligatorios
@@ -334,13 +370,15 @@ export const reenviarFormulario = async (req, res) => {
             }
         }
 
-        // Validar área solo para Merkahorro
-        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+        // Validar área solo para Merkahorro y Megamayoristas
+        if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
             console.error('Área no válida para Merkahorro:', area);
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
-
-        // Validar director para Construahorro
+        if (isMegamayoristasForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Megamayoristas:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
         if (isConstruahorroForm && (!director || !correoANombre[director])) {
             console.error('Director no válido para Construahorro:', director);
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
@@ -417,8 +455,10 @@ export const reenviarFormulario = async (req, res) => {
             observacion_gerencia: null,
             observacion_calidad: null,
             observacion_seguridad: null,
-            etapas_aprobadas: [], // Agregar etapas_aprobadas como un array vacío
+            role: 'creador',
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
+            [fieldMapping.isMegamayoristas]: isMegamayoristasForm, // NUEVO
+            etapas_aprobadas: [], // Agregar etapas_aprobadas como un array vacío
         };
 
         // Actualizar la solicitud en Supabase
@@ -434,29 +474,49 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
-        // Determinar el destinatario del correo
-        const emailRecipient = isConstruahorroForm ? updated[fieldMapping.director] : updated[fieldMapping.area];
+        // Determinar destinatario y asunto según tipo de formulario
+        let emailRecipient, emailSubject;
+        if (isConstruahorroForm) {
+            emailRecipient = updated[fieldMapping.director];
+            emailSubject = "Reenvío de Solicitud Editada - Director";
+        } else if (isMegamayoristasForm) {
+            emailRecipient = updated[fieldMapping.director];
+            emailSubject = "Reenvío de Solicitud Editada - Director";
+        } else {
+            emailRecipient = updated[fieldMapping.area];
+            emailSubject = "Reenvío de Solicitud Editada - Área";
+        }
 
         // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
         if (!validation.valid) {
             console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
             return res.status(400).json({ error: validation.error });
         }
 
-        const emailSubject = isConstruahorroForm ? "Reenvío de Solicitud Editada - Director" : "Reenvío de Solicitud Editada - Área";
-
-        const emailFormData = createEmailData(req.body, updated);
-
-        const emailData = await (isConstruahorroForm
-            ? generarHtmlCorreoDirector({ ...emailFormData, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director` })
-            : generarHtmlCorreoArea({ ...emailFormData, workflow_id: updated.id, approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`, rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area` }));
+        // Generar HTML correo según tipo
+        let emailData;
+        if (isConstruahorroForm || isMegamayoristasForm) {
+            emailData = await generarHtmlCorreoDirector({
+                ...emailFormData,
+                workflow_id: updated.id,
+                approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`,
+                rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`
+            });
+        } else {
+            emailData = await generarHtmlCorreoArea({
+                ...emailFormData,
+                workflow_id: updated.id,
+                approvalLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`,
+                rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/area`
+            });
+        }
 
         // Enviar el correo
         console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}` });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
@@ -477,6 +537,7 @@ export const actualizarFormulario = async (req, res) => {
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
+        const { isMegamayoristas } = req.body; // NUEVO
 
         // Log del payload recibido
         console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area });
@@ -493,8 +554,9 @@ export const actualizarFormulario = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        // Usar isConstruahorro del registro en Supabase como fuente principal
+        // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
+        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
         console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
 
         // Validar campos obligatorios
@@ -512,13 +574,15 @@ export const actualizarFormulario = async (req, res) => {
             }
         }
 
-        // Validar área solo para Merkahorro
-        if (!isConstruahorroForm && (!area || !correoANombre[area])) {
+        // Validar área solo para Merkahorro y Megamayoristas
+        if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
             console.error('Área no válida para Merkahorro:', area);
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
-
-        // Validar director para Construahorro
+        if (isMegamayoristasForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Megamayoristas:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
         if (isConstruahorroForm && (!director || !correoANombre[director])) {
             console.error('Director no válido para Construahorro:', director);
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
@@ -590,6 +654,7 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
+            [fieldMapping.isMegamayoristas]: isMegamayoristasForm, // NUEVO
         };
 
         // Actualizar en Supabase
@@ -653,13 +718,14 @@ export const decision = async (req, res) => {
         });
 
         const isConstruahorro = solicitud[fieldMapping.isConstruahorro] === true;
+        const isMegamayoristas = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
         let updateFields = {};
         let nextEmailRecipient = null;
         let emailSubject = '';
         let emailData = null;
         let etapasAprobadas = solicitud.etapas_aprobadas || []; // Obtener etapas aprobadas existentes
 
-        if (role === 'area' && !isConstruahorro) {
+        if (role === 'area' && !(isConstruahorro || isMegamayoristas)) {
             if (solicitud.estado !== 'pendiente por area') {
                 console.error('Estado no válido para área:', solicitud.estado);
                 return res.status(400).json({ error: 'Estado no válido para aprobación/rechazo por área' });
