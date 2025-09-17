@@ -328,6 +328,18 @@ export const crearFormulario = async (req, res) => {
     }
 };
 
+function parseOrArray(val) {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        try {
+            return JSON.parse(val);
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
 export const reenviarFormulario = async (req, res) => {
     try {
         const { id } = req.params;
@@ -358,6 +370,13 @@ export const reenviarFormulario = async (req, res) => {
             console.error('Error al obtener solicitud:', fetchError);
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
+
+        // Asegura que los campos dinámicos sean arrays y luego string JSON
+        const competenciasCulturalesArr = parseOrArray(req.body.competenciasCulturales);
+        const competenciasCargoArr = parseOrArray(req.body.competenciasCargo);
+        const responsabilidadesArr = parseOrArray(req.body.responsabilidades);
+        const planEntrenamientoArr = parseOrArray(req.body.planEntrenamiento);
+        const planCapacitacionContinuaArr = parseOrArray(req.body.planCapacitacionContinua);
 
         // CORRECCIÓN: Asegura que isMegamayoristasForm sea booleano
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true || solicitud[fieldMapping.isConstruahorro] === 'true';
@@ -446,15 +465,15 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
             [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
             [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: ensureJsonString(competenciasCulturales),
-            [fieldMapping.competenciasCargo]: ensureJsonString(competenciasCargo),
-            [fieldMapping.responsabilidades]: ensureJsonString(responsabilidades),
+            [fieldMapping.competenciasCulturales]: JSON.stringify(competenciasCulturalesArr),
+            [fieldMapping.competenciasCargo]: JSON.stringify(competenciasCargoArr),
+            [fieldMapping.responsabilidades]: JSON.stringify(responsabilidadesArr),
             [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
             [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: ensureJsonString(planEntrenamiento),
-            [fieldMapping.planCapacitacionContinua]: ensureJsonString(planCapacitacionContinua),
+            [fieldMapping.planEntrenamiento]: JSON.stringify(planEntrenamientoArr),
+            [fieldMapping.planCapacitacionContinua]: JSON.stringify(planCapacitacionContinuaArr),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
