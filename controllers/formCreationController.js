@@ -474,6 +474,9 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(500).json({ error: updateError.message });
         }
 
+        // CORRECCIÓN: Definir emailFormData antes de usarlo
+        const emailFormData = createEmailData(req.body, updated);
+
         // Determinar destinatario y asunto según tipo de formulario
         let emailRecipient, emailSubject;
         if (isConstruahorroForm) {
