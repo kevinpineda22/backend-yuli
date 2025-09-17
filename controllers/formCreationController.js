@@ -122,6 +122,15 @@ const validateEmailRecipient = (recipient, formType) => {
     return { valid: true };
 };
 
+function ensureJsonString(value) {
+    if (typeof value === 'string') return value;
+    try {
+        return JSON.stringify(value ?? []);
+    } catch {
+        return '[]';
+    }
+}
+
 export const crearFormulario = async (req, res) => {
     try {
         const {
@@ -156,8 +165,8 @@ export const crearFormulario = async (req, res) => {
         }
 
         // Validar área solo para Merkahorro y Megamayoristas
-        const isConstruahorroForm = isConstruahorro === 'true';
-        const isMegamayoristasForm = isMegamayoristas === 'true'; // NUEVO
+        const isConstruahorroForm = isConstruahorro === 'true' || isConstruahorro === true;
+        const isMegamayoristasForm = isMegamayoristas === 'true' || isMegamayoristas === true;
 
         if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
             // Merkahorro: área es obligatoria
@@ -229,15 +238,15 @@ export const crearFormulario = async (req, res) => {
             [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
             [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
             [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: competenciasCulturales,
-            [fieldMapping.competenciasCargo]: competenciasCargo,
-            [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.competenciasCulturales]: ensureJsonString(competenciasCulturales),
+            [fieldMapping.competenciasCargo]: ensureJsonString(competenciasCargo),
+            [fieldMapping.responsabilidades]: ensureJsonString(responsabilidades),
             [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
             [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
-            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planEntrenamiento]: ensureJsonString(planEntrenamiento),
+            [fieldMapping.planCapacitacionContinua]: ensureJsonString(planCapacitacionContinua),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
@@ -277,7 +286,7 @@ export const crearFormulario = async (req, res) => {
             emailSubject = "Nueva Solicitud de Aprobación - Director";
         } else if (isMegamayoristasForm) {
             emailRecipient = director;
-            emailSubject = "Nueva Solicitud de Aprobación - Director";
+            emailSubject = "Nueva Solicitud de Aprobación - Director (Megamayoristas)";
         } else {
             emailRecipient = area;
             emailSubject = "Nueva Solicitud de Aprobación - Área";
@@ -350,10 +359,9 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
-        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
-        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
-        console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
+        // CORRECCIÓN: Asegura que isMegamayoristasForm sea booleano
+        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true || solicitud[fieldMapping.isConstruahorro] === 'true';
+        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true || solicitud[fieldMapping.isMegamayoristas] === 'true';
 
         // Validar campos obligatorios
         const requiredFields = {
@@ -438,15 +446,15 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
             [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
             [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: competenciasCulturales,
-            [fieldMapping.competenciasCargo]: competenciasCargo,
-            [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.competenciasCulturales]: ensureJsonString(competenciasCulturales),
+            [fieldMapping.competenciasCargo]: ensureJsonString(competenciasCargo),
+            [fieldMapping.responsabilidades]: ensureJsonString(responsabilidades),
             [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
             [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
-            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planEntrenamiento]: ensureJsonString(planEntrenamiento),
+            [fieldMapping.planCapacitacionContinua]: ensureJsonString(planCapacitacionContinua),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             estado: isConstruahorroForm ? 'pendiente por director' : 'pendiente por area',
@@ -484,7 +492,7 @@ export const reenviarFormulario = async (req, res) => {
             emailSubject = "Reenvío de Solicitud Editada - Director";
         } else if (isMegamayoristasForm) {
             emailRecipient = updated[fieldMapping.director];
-            emailSubject = "Reenvío de Solicitud Editada - Director";
+            emailSubject = "Reenvío de Solicitud Editada - Director (Megamayoristas)";
         } else {
             emailRecipient = updated[fieldMapping.area];
             emailSubject = "Reenvío de Solicitud Editada - Área";
@@ -645,15 +653,15 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
             [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
             [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: competenciasCulturales,
-            [fieldMapping.competenciasCargo]: competenciasCargo,
-            [fieldMapping.responsabilidades]: responsabilidades,
+            [fieldMapping.competenciasCulturales]: ensureJsonString(competenciasCulturales),
+            [fieldMapping.competenciasCargo]: ensureJsonString(competenciasCargo),
+            [fieldMapping.responsabilidades]: ensureJsonString(responsabilidades),
             [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
             [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: planEntrenamiento || JSON.stringify([]),
-            [fieldMapping.planCapacitacionContinua]: planCapacitacionContinua || JSON.stringify([]),
+            [fieldMapping.planEntrenamiento]: ensureJsonString(planEntrenamiento),
+            [fieldMapping.planCapacitacionContinua]: ensureJsonString(planCapacitacionContinua),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
