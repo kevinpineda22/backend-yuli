@@ -290,19 +290,12 @@ export const crearFormulario = async (req, res) => {
                 approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
                 rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
             });
-        } else if (isMegamayoristasForm) {
-            // CORRECCIÓN: Megamayoristas inicia igual que Merkahorro, con área
-            emailRecipient = area;
-            emailSubject = "Nueva Solicitud de Aprobación - Área (Megamayoristas)";
-            emailData = await generarHtmlCorreoArea({
-                ...emailFormData,
-                workflow_id,
-                approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
-                rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
-            });
         } else {
+            // CORRECCIÓN: Tanto Merkahorro como Megamayoristas inician con área
             emailRecipient = area;
-            emailSubject = "Nueva Solicitud de Aprobación - Área";
+            emailSubject = isMegamayoristasForm
+                ? "Nueva Solicitud de Aprobación - Área (Megamayoristas)"
+                : "Nueva Solicitud de Aprobación - Área";
             emailData = await generarHtmlCorreoArea({
                 ...emailFormData,
                 workflow_id,
@@ -506,28 +499,10 @@ export const reenviarFormulario = async (req, res) => {
         const emailFormData = createEmailData(req.body, updated);
 
         // Determinar destinatario y asunto según tipo de formulario
-        let emailRecipient, emailSubject;
+        let emailRecipient, emailSubject, emailData;
         if (isConstruahorroForm) {
             emailRecipient = updated[fieldMapping.director];
             emailSubject = "Reenvío de Solicitud Editada - Director";
-        } else if (isMegamayoristasForm) {
-            emailRecipient = updated[fieldMapping.director];
-            emailSubject = "Reenvío de Solicitud Editada - Director (Megamayoristas)";
-        } else {
-            emailRecipient = updated[fieldMapping.area];
-            emailSubject = "Reenvío de Solicitud Editada - Área";
-        }
-
-        // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
-        if (!validation.valid) {
-            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
-            return res.status(400).json({ error: validation.error });
-        }
-
-        // Generar HTML correo según tipo
-        let emailData;
-        if (isConstruahorroForm || isMegamayoristasForm) {
             emailData = await generarHtmlCorreoDirector({
                 ...emailFormData,
                 workflow_id: updated.id,
@@ -535,6 +510,11 @@ export const reenviarFormulario = async (req, res) => {
                 rejectionLink: `https://www.merkahorro.com/dgdecision/${updated.id}/director`
             });
         } else {
+            // CORRECCIÓN: Tanto Merkahorro como Megamayoristas reenvían primero al área
+            emailRecipient = updated[fieldMapping.area];
+            emailSubject = isMegamayoristasForm
+                ? "Reenvío de Solicitud Editada - Área (Megamayoristas)"
+                : "Reenvío de Solicitud Editada - Área";
             emailData = await generarHtmlCorreoArea({
                 ...emailFormData,
                 workflow_id: updated.id,
@@ -543,11 +523,18 @@ export const reenviarFormulario = async (req, res) => {
             });
         }
 
+        // Validar destinatario
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        if (!validation.valid) {
+            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', updated);
+            return res.status(400).json({ error: validation.error });
+        }
+
         // Enviar el correo
         console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}` });
+        res.json({ message: `Solicitud reenviada, flujo reiniciado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}` });
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
