@@ -572,6 +572,13 @@ export const actualizarFormulario = async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
+        // Asegura que los campos dinámicos sean arrays y luego string JSON
+        const competenciasCulturalesArr = parseOrArray(competenciasCulturales);
+        const competenciasCargoArr = parseOrArray(competenciasCargo);
+        const responsabilidadesArr = parseOrArray(responsabilidades);
+        const planEntrenamientoArr = parseOrArray(planEntrenamiento);
+        const planCapacitacionContinuaArr = parseOrArray(planCapacitacionContinua);
+
         // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
         const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
@@ -660,15 +667,15 @@ export const actualizarFormulario = async (req, res) => {
             [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
             [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
             [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: ensureJsonString(competenciasCulturales),
-            [fieldMapping.competenciasCargo]: ensureJsonString(competenciasCargo),
-            [fieldMapping.responsabilidades]: ensureJsonString(responsabilidades),
+            [fieldMapping.competenciasCulturales]: JSON.stringify(competenciasCulturalesArr),
+            [fieldMapping.competenciasCargo]: JSON.stringify(competenciasCargoArr),
+            [fieldMapping.responsabilidades]: JSON.stringify(responsabilidadesArr),
             [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
             [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
             [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: ensureJsonString(planEntrenamiento),
-            [fieldMapping.planCapacitacionContinua]: ensureJsonString(planCapacitacionContinua),
+            [fieldMapping.planEntrenamiento]: JSON.stringify(planEntrenamientoArr),
+            [fieldMapping.planCapacitacionContinua]: JSON.stringify(planCapacitacionContinuaArr),
             [fieldMapping.planCarrera]: planCarrera || 'No aplica',
             [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
             [fieldMapping.isConstruahorro]: isConstruahorroForm,
