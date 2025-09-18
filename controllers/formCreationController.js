@@ -573,11 +573,12 @@ export const actualizarFormulario = async (req, res) => {
         }
 
         // Asegura que los campos dinámicos sean arrays y luego string JSON
-        const competenciasCulturalesArr = parseOrArray(competenciasCulturales);
-        const competenciasCargoArr = parseOrArray(competenciasCargo);
-        const responsabilidadesArr = parseOrArray(responsabilidades);
-        const planEntrenamientoArr = parseOrArray(planEntrenamiento);
-        const planCapacitacionContinuaArr = parseOrArray(planCapacitacionContinua);
+        // CORRECCIÓN: Si vienen como string JSON, parsea antes de guardar
+        const competenciasCulturalesArr = parseOrArray(req.body.competenciasCulturales);
+        const competenciasCargoArr = parseOrArray(req.body.competenciasCargo);
+        const responsabilidadesArr = parseOrArray(req.body.responsabilidades);
+        const planEntrenamientoArr = parseOrArray(req.body.planEntrenamiento);
+        const planCapacitacionContinuaArr = parseOrArray(req.body.planCapacitacionContinua);
 
         // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
