@@ -131,8 +131,174 @@ function ensureJsonString(value) {
     }
 }
 
+export const actualizarFormulario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // LOG PARA VER EL PAYLOAD RECIBIDO
+        console.log('Payload recibido en actualizarFormulario:', JSON.stringify(req.body, null, 2));
+        const {
+            fecha, director, gerencia, calidad, seguridad, area, isConstruahorro, nombreCargo,
+            areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
+            estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
+            tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
+            idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
+            competenciasCulturales, competenciasCargo, responsabilidades,
+            indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
+            planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
+        } = req.body;
+        const { estructuraOrganizacional } = req.files || {};
+        const { isMegamayoristas } = req.body; // NUEVO
+
+        // Log del payload recibido
+        console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area });
+
+        // Obtener la solicitud actual desde Supabase
+        const { data: solicitud, error: fetchError } = await supabase
+            .from('yuli')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !solicitud) {
+            console.error('Error al obtener solicitud:', fetchError);
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        // Asegura que los campos dinámicos sean arrays y luego string JSON
+        // CORRECCIÓN: Si vienen como string JSON, parsea antes de guardar
+        const competenciasCulturalesArr = parseOrArray(req.body.competenciasCulturales);
+        const competenciasCargoArr = parseOrArray(req.body.competenciasCargo);
+        const responsabilidadesArr = parseOrArray(req.body.responsabilidades);
+        const planEntrenamientoArr = parseOrArray(req.body.planEntrenamiento);
+        const planCapacitacionContinuaArr = parseOrArray(req.body.planCapacitacionContinua);
+
+        // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
+        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
+        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
+        console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
+
+        // Validar campos obligatorios
+        const requiredFields = {
+            fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
+            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
+            escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
+            competenciasCulturales, competenciasCargo, responsabilidades,
+        };
+
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (!value) {
+                console.error(`Campo obligatorio faltante: ${key}`);
+                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
+            }
+        }
+
+        // Validar área solo para Merkahorro y Megamayoristas
+        if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
+            console.error('Área no válida para Merkahorro:', area);
+            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
+        }
+        if (isMegamayoristasForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Megamayoristas:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
+        if (isConstruahorroForm && (!director || !correoANombre[director])) {
+            console.error('Director no válido para Construahorro:', director);
+            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
+        }
+
+        if (requiereVehiculo === 'Sí' && !tipoLicencia) {
+            console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
+            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+        }
+
+        // Subir estructura organizacional
+        let estructuraOrganizacionalUrl = null;
+        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
+            const { error: uploadError } = await supabase
+                .storage.from('pdfs-yuli')
+                .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+
+            if (uploadError) {
+                console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
+            estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else {
+            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
+        }
+
+        // Mapear datos
+        const updateFields = {
+            [fieldMapping.fecha]: fecha,
+            [fieldMapping.director]: director,
+            [fieldMapping.gerencia]: gerencia,
+            [fieldMapping.calidad]: calidad,
+            [fieldMapping.seguridad]: seguridad,
+            [fieldMapping.area]: isConstruahorroForm ? null : area,
+            [fieldMapping.nombreCargo]: nombreCargo,
+            [fieldMapping.areaGeneral]: areaGeneral,
+            [fieldMapping.departamento]: departamento,
+            [fieldMapping.proceso]: proceso,
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+            [fieldMapping.poblacionFocalizada]: poblacionFocalizada || 'No aplica',
+            [fieldMapping.escolaridad]: escolaridad,
+            [fieldMapping.area_formacion]: area_formacion,
+            [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
+            [fieldMapping.experiencia]: experiencia,
+            [fieldMapping.jefeInmediato]: jefeInmediato,
+            [fieldMapping.supervisaA]: supervisaA || 'No aplica',
+            [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: tipoContrato,
+            [fieldMapping.misionCargo]: misionCargo,
+            [fieldMapping.cursosCertificaciones]: cursosCertificaciones || 'No aplica',
+            [fieldMapping.requiereVehiculo]: requiereVehiculo || 'No aplica',
+            [fieldMapping.tipoLicencia]: tipoLicencia || 'No aplica',
+            [fieldMapping.idiomas]: idiomas || 'No aplica',
+            [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
+            [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
+            [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
+            [fieldMapping.competenciasCulturales]: JSON.stringify(competenciasCulturalesArr),
+            [fieldMapping.competenciasCargo]: JSON.stringify(competenciasCargoArr),
+            [fieldMapping.responsabilidades]: JSON.stringify(responsabilidadesArr),
+            [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
+            [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
+            [fieldMapping.planEntrenamiento]: JSON.stringify(planEntrenamientoArr),
+            [fieldMapping.planCapacitacionContinua]: JSON.stringify(planCapacitacionContinuaArr),
+            [fieldMapping.planCarrera]: planCarrera || 'No aplica',
+            [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
+            [fieldMapping.isConstruahorro]: isConstruahorroForm,
+            [fieldMapping.isMegamayoristas]: isMegamayoristasForm, // NUEVO
+        };
+
+        // Actualizar en Supabase
+        const { data, error } = await supabase
+            .from('yuli')
+            .update(updateFields)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error al actualizar en actualizarFormulario:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json({ message: "✅ Solicitud actualizada correctamente", data });
+    } catch (err) {
+        console.error("Error en actualizarFormulario:", err);
+        res.status(500).json({ error: err.message || "Error interno al actualizar solicitud" });
+    }
+};
+
 export const crearFormulario = async (req, res) => {
     try {
+        // LOG PARA VER EL PAYLOAD RECIBIDO
+        console.log('Payload recibido en crearFormulario:', JSON.stringify(req.body, null, 2));
         const {
             fecha, director, gerencia, calidad, seguridad, area, isConstruahorro, nombreCargo,
             areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
@@ -336,6 +502,8 @@ function parseOrArray(val) {
 
 export const reenviarFormulario = async (req, res) => {
     try {
+        // LOG PARA VER EL PAYLOAD RECIBIDO
+        console.log('Payload recibido en reenviarFormulario:', JSON.stringify(req.body, null, 2));
         const { id } = req.params;
         const {
             fecha, director, gerencia, calidad, seguridad, area, isConstruahorro, nombreCargo,
@@ -538,168 +706,6 @@ export const reenviarFormulario = async (req, res) => {
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
-    }
-};
-
-export const actualizarFormulario = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            fecha, director, gerencia, calidad, seguridad, area, isConstruahorro, nombreCargo,
-            areaGeneral, departamento, proceso, poblacionFocalizada, escolaridad, area_formacion,
-            estudiosComplementarios, experiencia, jefeInmediato, supervisaA, numeroPersonasCargo,
-            tipoContrato, misionCargo, cursosCertificaciones, requiereVehiculo, tipoLicencia,
-            idiomas, requiereViajar, areasRelacionadas, relacionamientoExterno,
-            competenciasCulturales, competenciasCargo, responsabilidades,
-            indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
-            planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
-        } = req.body;
-        const { estructuraOrganizacional } = req.files || {};
-        const { isMegamayoristas } = req.body; // NUEVO
-
-        // Log del payload recibido
-        console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area });
-
-        // Obtener la solicitud actual desde Supabase
-        const { data: solicitud, error: fetchError } = await supabase
-            .from('yuli')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (fetchError || !solicitud) {
-            console.error('Error al obtener solicitud:', fetchError);
-            return res.status(404).json({ error: 'Solicitud no encontrada' });
-        }
-
-        // Asegura que los campos dinámicos sean arrays y luego string JSON
-        // CORRECCIÓN: Si vienen como string JSON, parsea antes de guardar
-        const competenciasCulturalesArr = parseOrArray(req.body.competenciasCulturales);
-        const competenciasCargoArr = parseOrArray(req.body.competenciasCargo);
-        const responsabilidadesArr = parseOrArray(req.body.responsabilidades);
-        const planEntrenamientoArr = parseOrArray(req.body.planEntrenamiento);
-        const planCapacitacionContinuaArr = parseOrArray(req.body.planCapacitacionContinua);
-
-        // Usar isConstruahorro y isMegamayoristas del registro en Supabase como fuente principal
-        const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true;
-        const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true; // NUEVO
-        console.log('isConstruahorro desde Supabase:', solicitud[fieldMapping.isConstruahorro], 'isConstruahorro desde req.body:', isConstruahorro);
-
-        // Validar campos obligatorios
-        const requiredFields = {
-            fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
-            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
-            escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
-            competenciasCulturales, competenciasCargo, responsabilidades,
-        };
-
-        for (const [key, value] of Object.entries(requiredFields)) {
-            if (!value) {
-                console.error(`Campo obligatorio faltante: ${key}`);
-                return res.status(400).json({ error: `El campo ${key} es obligatorio` });
-            }
-        }
-
-        // Validar área solo para Merkahorro y Megamayoristas
-        if (!isConstruahorroForm && !isMegamayoristasForm && (!area || !correoANombre[area])) {
-            console.error('Área no válida para Merkahorro:', area);
-            return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
-        }
-        if (isMegamayoristasForm && (!director || !correoANombre[director])) {
-            console.error('Director no válido para Megamayoristas:', director);
-            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
-        }
-        if (isConstruahorroForm && (!director || !correoANombre[director])) {
-            console.error('Director no válido para Construahorro:', director);
-            return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
-        }
-
-        if (requiereVehiculo === 'Sí' && !tipoLicencia) {
-            console.error('Falta el campo tipoLicencia cuando requiereVehiculo es Sí');
-            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
-        }
-
-        // Subir estructura organizacional
-        let estructuraOrganizacionalUrl = null;
-        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
-            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
-            const { error: uploadError } = await supabase
-                .storage.from('pdfs-yuli')
-                .upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
-
-            if (uploadError) {
-                console.error("Error al subir archivo estructuraOrganizacional:", uploadError);
-                return res.status(500).json({ error: 'Error al subir archivo estructuraOrganizacional' });
-            }
-
-            const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
-            estructuraOrganizacionalUrl = publicUrlData.publicUrl;
-        } else {
-            return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
-        }
-
-        // Mapear datos
-        const updateFields = {
-            [fieldMapping.fecha]: fecha,
-            [fieldMapping.director]: director,
-            [fieldMapping.gerencia]: gerencia,
-            [fieldMapping.calidad]: calidad,
-            [fieldMapping.seguridad]: seguridad,
-            [fieldMapping.area]: isConstruahorroForm ? null : area,
-            [fieldMapping.nombreCargo]: nombreCargo,
-            [fieldMapping.areaGeneral]: areaGeneral,
-            [fieldMapping.departamento]: departamento,
-            [fieldMapping.proceso]: proceso,
-            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            [fieldMapping.poblacionFocalizada]: poblacionFocalizada || 'No aplica',
-            [fieldMapping.escolaridad]: escolaridad,
-            [fieldMapping.area_formacion]: area_formacion,
-            [fieldMapping.estudiosComplementarios]: estudiosComplementarios || 'No aplica',
-            [fieldMapping.experiencia]: experiencia,
-            [fieldMapping.jefeInmediato]: jefeInmediato,
-            [fieldMapping.supervisaA]: supervisaA || 'No aplica',
-            [fieldMapping.numeroPersonasCargo]: numeroPersonasCargo ? parseInt(numeroPersonasCargo) : null,
-            [fieldMapping.tipoContrato]: tipoContrato,
-            [fieldMapping.misionCargo]: misionCargo,
-            [fieldMapping.cursosCertificaciones]: cursosCertificaciones || 'No aplica',
-            [fieldMapping.requiereVehiculo]: requiereVehiculo || 'No aplica',
-            [fieldMapping.tipoLicencia]: tipoLicencia || 'No aplica',
-            [fieldMapping.idiomas]: idiomas || 'No aplica',
-            [fieldMapping.requiereViajar]: requiereViajar || 'No aplica',
-            [fieldMapping.areasRelacionadas]: areasRelacionadas || 'No aplica',
-            [fieldMapping.relacionamientoExterno]: relacionamientoExterno || 'No aplica',
-            [fieldMapping.competenciasCulturales]: JSON.stringify(competenciasCulturalesArr),
-            [fieldMapping.competenciasCargo]: JSON.stringify(competenciasCargoArr),
-            [fieldMapping.responsabilidades]: JSON.stringify(responsabilidadesArr),
-            [fieldMapping.indicadores_gestion]: indicadoresGestion || 'No aplica',
-            [fieldMapping.requisitos_fisicos]: requisitosFisicos || 'No aplica',
-            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: riesgosObligacionesOrg || 'No aplica',
-            [fieldMapping.riesgos_obligaciones_sst_especificos]: riesgosObligacionesEsp || 'No aplica',
-            [fieldMapping.planEntrenamiento]: JSON.stringify(planEntrenamientoArr),
-            [fieldMapping.planCapacitacionContinua]: JSON.stringify(planCapacitacionContinuaArr),
-            [fieldMapping.planCarrera]: planCarrera || 'No aplica',
-            [fieldMapping.competenciasDesarrolloIngreso]: competenciasDesarrolloIngreso || 'No aplica',
-            [fieldMapping.isConstruahorro]: isConstruahorroForm,
-            [fieldMapping.isMegamayoristas]: isMegamayoristasForm, // NUEVO
-        };
-
-        // Actualizar en Supabase
-        const { data, error } = await supabase
-            .from('yuli')
-            .update(updateFields)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Error al actualizar en actualizarFormulario:", error);
-            return res.status(500).json({ error: error.message });
-        }
-
-        res.json({ message: "✅ Solicitud actualizada correctamente", data });
-    } catch (err) {
-        console.error("Error en actualizarFormulario:", err);
-        res.status(500).json({ error: err.message || "Error interno al actualizar solicitud" });
     }
 };
 
