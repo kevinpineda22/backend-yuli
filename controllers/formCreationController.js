@@ -280,35 +280,29 @@ export const crearFormulario = async (req, res) => {
         const emailFormData = createEmailData(req.body, data);
 
         // Determinar destinatario y asunto según tipo de formulario
-        let emailRecipient, emailSubject;
+        let emailRecipient, emailSubject, emailData;
         if (isConstruahorroForm) {
             emailRecipient = director;
             emailSubject = "Nueva Solicitud de Aprobación - Director";
-        } else if (isMegamayoristasForm) {
-            emailRecipient = director;
-            emailSubject = "Nueva Solicitud de Aprobación - Director (Megamayoristas)";
-        } else {
-            emailRecipient = area;
-            emailSubject = "Nueva Solicitud de Aprobación - Área";
-        }
-
-        // Validar destinatario
-        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm || isMegamayoristasForm ? 'director' : 'area');
-        if (!validation.valid) {
-            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', data);
-            return res.status(400).json({ error: validation.error });
-        }
-
-        // Generar HTML correo según tipo
-        let emailData;
-        if (isConstruahorroForm || isMegamayoristasForm) {
             emailData = await generarHtmlCorreoDirector({
                 ...emailFormData,
                 workflow_id,
                 approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
                 rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`
             });
+        } else if (isMegamayoristasForm) {
+            // CORRECCIÓN: Megamayoristas inicia igual que Merkahorro, con área
+            emailRecipient = area;
+            emailSubject = "Nueva Solicitud de Aprobación - Área (Megamayoristas)";
+            emailData = await generarHtmlCorreoArea({
+                ...emailFormData,
+                workflow_id,
+                approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`,
+                rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/area`
+            });
         } else {
+            emailRecipient = area;
+            emailSubject = "Nueva Solicitud de Aprobación - Área";
             emailData = await generarHtmlCorreoArea({
                 ...emailFormData,
                 workflow_id,
@@ -317,11 +311,18 @@ export const crearFormulario = async (req, res) => {
             });
         }
 
+        // Validar destinatario
+        const validation = validateEmailRecipient(emailRecipient, isConstruahorroForm ? 'director' : 'area');
+        if (!validation.valid) {
+            console.error('Destinatario no válido:', emailRecipient, 'Solicitud:', data);
+            return res.status(400).json({ error: validation.error });
+        }
+
         // Enviar correo
         console.log('Enviando correo a:', emailRecipient, 'Asunto:', emailSubject);
         await sendEmail(emailRecipient, emailSubject, emailData.html, emailData.attachments);
 
-        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm || isMegamayoristasForm ? 'director' : 'área'}`, workflow_id });
+        res.status(201).json({ message: `Formulario creado y correo enviado a ${isConstruahorroForm ? 'director' : 'área'}`, workflow_id });
     } catch (err) {
         console.error("Error en crearFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
