@@ -145,12 +145,13 @@ export const actualizarFormulario = async (req, res) => {
             competenciasCulturales, competenciasCargo, responsabilidades,
             indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
+            keepExistingFile, existingFileUrl // NUEVOS PARÁMETROS
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
         const { isMegamayoristas } = req.body; // NUEVO
 
         // Log del payload recibido
-        console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area });
+        console.log('Payload recibido en actualizarFormulario:', { id, isConstruahorro, director, area, keepExistingFile, existingFileUrl });
 
         // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error: fetchError } = await supabase
@@ -165,7 +166,6 @@ export const actualizarFormulario = async (req, res) => {
         }
 
         // Asegura que los campos dinámicos sean arrays y luego string JSON
-        // CORRECCIÓN: Si vienen como string JSON, parsea antes de guardar
         const competenciasCulturalesArr = parseOrArray(req.body.competenciasCulturales);
         const competenciasCargoArr = parseOrArray(req.body.competenciasCargo);
         const responsabilidadesArr = parseOrArray(req.body.responsabilidades);
@@ -211,9 +211,11 @@ export const actualizarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
-        // Subir estructura organizacional
+        // Manejar estructura organizacional
         let estructuraOrganizacionalUrl = null;
+        
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            // Si hay un archivo nuevo, subirlo
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
             const { error: uploadError } = await supabase
                 .storage.from('pdfs-yuli')
@@ -226,7 +228,12 @@ export const actualizarFormulario = async (req, res) => {
 
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else if (keepExistingFile === 'true' && existingFileUrl) {
+            // Si se indica mantener el archivo existente, usar la URL existente
+            estructuraOrganizacionalUrl = existingFileUrl;
+            console.log('Manteniendo archivo existente:', existingFileUrl);
         } else {
+            // Si no hay archivo nuevo ni se mantiene el existente, error
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
@@ -514,12 +521,13 @@ export const reenviarFormulario = async (req, res) => {
             competenciasCulturales, competenciasCargo, responsabilidades,
             indicadoresGestion, requisitosFisicos, riesgosObligacionesOrg, riesgosObligacionesEsp,
             planEntrenamiento, planCapacitacionContinua, planCarrera, competenciasDesarrolloIngreso,
+            keepExistingFile, existingFileUrl // NUEVOS PARÁMETROS
         } = req.body;
         const { estructuraOrganizacional } = req.files || {};
-        const { isMegamayoristas } = req.body; // NUEVO
+        const { isMegamayoristas } = req.body;
 
         // Log del payload recibido
-        console.log('Payload recibido en reenviarFormulario:', { id, isConstruahorro, director, area });
+        console.log('Payload recibido en reenviarFormulario:', { id, isConstruahorro, director, area, keepExistingFile, existingFileUrl });
 
         // Obtener la solicitud actual desde Supabase
         const { data: solicitud, error: fetchError } = await supabase
@@ -544,10 +552,9 @@ export const reenviarFormulario = async (req, res) => {
         const isConstruahorroForm = solicitud[fieldMapping.isConstruahorro] === true || solicitud[fieldMapping.isConstruahorro] === 'true';
         const isMegamayoristasForm = solicitud[fieldMapping.isMegamayoristas] === true || solicitud[fieldMapping.isMegamayoristas] === 'true';
 
-        // Validar campos obligatorios
+        // Validar campos obligatorios (excluyendo estructuraOrganizacional por ahora)
         const requiredFields = {
             fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
-            estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades,
         };
@@ -578,9 +585,11 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
         }
 
-        // Subir estructura organizacional
+        // Manejar estructura organizacional
         let estructuraOrganizacionalUrl = null;
+        
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
+            // Si hay un archivo nuevo, subirlo
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
             const { error: uploadError } = await supabase
                 .storage.from('pdfs-yuli')
@@ -593,7 +602,12 @@ export const reenviarFormulario = async (req, res) => {
 
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
+        } else if (keepExistingFile === 'true' && existingFileUrl) {
+            // Si se indica mantener el archivo existente, usar la URL existente
+            estructuraOrganizacionalUrl = existingFileUrl;
+            console.log('Manteniendo archivo existente:', existingFileUrl);
         } else {
+            // Si no hay archivo nuevo ni se mantiene el existente, error
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
