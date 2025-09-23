@@ -181,11 +181,13 @@ export const reenviarFormulario = async (req, res) => {
         const { estructuraOrganizacional } = req.files || {};
         
         // Obtener la solicitud original para asegurar la consistencia
-        const { data: solicitud } = await supabase.from('yuli').select('*').eq('id', id).single();
-        if (!solicitud) {
+        const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
+        
+        if (fetchError || !solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
         
+        // Manejar la carga o conservación del archivo de estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -197,8 +199,8 @@ export const reenviarFormulario = async (req, res) => {
         } else {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
-        
-        // Mapeo explícito de los campos para la actualización
+
+        // Mapeo y conversión explícita de datos para evitar errores de tipo
         const updates = {
             [fieldMapping.nombreCargo]: updatesData.nombreCargo,
             [fieldMapping.areaGeneral]: updatesData.areaGeneral,
@@ -233,10 +235,10 @@ export const reenviarFormulario = async (req, res) => {
             [fieldMapping.planCapacitacionContinua]: parseOrArray(updatesData.planCapacitacionContinua),
             [fieldMapping.planCarrera]: updatesData.planCarrera || null,
             [fieldMapping.competenciasDesarrolloIngreso]: updatesData.competenciasDesarrolloIngreso || null,
-            [fieldMapping.isConstruahorro]: solicitud.isConstruahorro,
-            [fieldMapping.isMegamayoristas]: solicitud.isMegamayoristas,
+            [fieldMapping.isConstruahorro]: updatesData.isConstruahorro === 'true',
+            [fieldMapping.isMegamayoristas]: updatesData.isMegamayoristas === 'true',
             
-            // Campos de aprobación, convertidos a enteros
+            // Convertir a enteros para los IDs de los aprobadores
             [fieldMapping.area]: parseInt(updatesData.area),
             [fieldMapping.director]: parseInt(updatesData.director),
             [fieldMapping.gerencia]: parseInt(updatesData.gerencia),
@@ -252,16 +254,33 @@ export const reenviarFormulario = async (req, res) => {
             observacion_seguridad: null,
             etapas_aprobadas: [],
         };
+        
+        // **Validar que los IDs sean números válidos**
+        if (isNaN(updates.area)) {
+             return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' });
+        }
+        if (isNaN(updates.director)) {
+             return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' });
+        }
+        if (isNaN(updates.gerencia)) {
+             return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' });
+        }
+        if (isNaN(updates.calidad)) {
+             return res.status(400).json({ error: 'El ID del aprobador de calidad no es válido.' });
+        }
+        if (isNaN(updates.seguridad)) {
+             return res.status(400).json({ error: 'El ID del aprobador de seguridad no es válido.' });
+        }
 
         const { data: updated, error: updateError } = await supabase.from('yuli').update(updates).eq('id', id).select().single();
         if (updateError) {
-            console.error('Error al actualizar en reenviarFormulario:', updateError);
+            console.error("Error al actualizar en reenviarFormulario:", updateError);
             return res.status(500).json({ error: updateError.message });
         }
         
         const aprobadorArea = await getAprobadorById(updated.area);
         if (!aprobadorArea) {
-            return res.status(400).json({ error: 'El aprobador de área no es válido o no se encontró' });
+            return res.status(400).json({ error: 'El aprobador de área no es válido o no se encontró.' });
         }
         
         const emailData = await generarHtmlCorreoArea({
