@@ -39,10 +39,10 @@ const fieldMapping = {
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
-    indicadores_gestion: 'indicadores_gestion',
-    requisitos_fisicos: 'requisitos_fisicos',
-    riesgos_obligaciones_sst_organizacionales: 'riesgos_obligaciones_sst_organizacionales',
-    riesgos_obligaciones_sst_especificos: 'riesgos_obligaciones_sst_especificos',
+    indicadoresGestion: 'indicadores_gestion',
+    requisitosFisicos: 'requisitos_fisicos',
+    riesgosObligacionesOrg: 'riesgos_obligaciones_sst_organizacionales',
+    riesgosObligacionesEsp: 'riesgos_obligaciones_sst_especificos',
     planEntrenamiento: 'plan_entrenamiento',
     planCapacitacionContinua: 'plan_capacitacion_continua',
     planCarrera: 'plan_carrera',
@@ -54,16 +54,6 @@ const getAprobadorById = async (id) => {
     const { data, error } = await supabase.from('aprobadores').select('*').eq('id', id).single();
     if (error) {
         console.error("Error al obtener aprobador por ID:", error);
-        return null;
-    }
-    return data;
-};
-
-const getAprobadorByEmail = async (email) => {
-    if (!email) return null;
-    const { data, error } = await supabase.from('aprobadores').select('*').eq('correo', email).limit(1).single();
-    if (error) {
-        console.error("Error al obtener aprobador por correo:", error);
         return null;
     }
     return data;
@@ -100,6 +90,7 @@ export const crearFormulario = async (req, res) => {
         const isConstruahorroForm = isConstruahorro === 'true';
         const isMegamayoristasForm = isMegamayoristas === 'true';
 
+        // Validaciones...
         const requiredFields = {
             ...formDataFromClient,
             poblacionFocalizada,
@@ -134,6 +125,7 @@ export const crearFormulario = async (req, res) => {
 
         const dataToInsert = {};
 
+        // Mapear campos del cliente a las columnas de la base de datos
         for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
             let value = req.body[clientKey];
 
@@ -192,6 +184,7 @@ export const reenviarFormulario = async (req, res) => {
         const { estructuraOrganizacional } = req.files || {};
         
         const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
+        
         if (fetchError || !solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
@@ -209,18 +202,17 @@ export const reenviarFormulario = async (req, res) => {
         }
 
         const updates = {};
-        const aprobadorKeys = ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
         
+        // Mapear campos de forma segura para evitar 'undefined'
         for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
             let value = req.body[clientKey];
-            
-            if (aprobadorKeys.includes(clientKey)) {
-                // Llama a la nueva función auxiliar para obtener el ID de forma segura
-                const aprobadorId = await getAprobadorIdFromValue(value);
-                if (aprobadorId === null) {
-                    return res.status(400).json({ error: `El aprobador de ${clientKey} (${value}) no es válido o no se encontró en la base de datos.` });
+
+            if (['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(clientKey)) {
+                if (value) {
+                    updates[dbKey] = parseInt(value);
+                } else {
+                    updates[dbKey] = null; // Asigna null si no se envió un valor
                 }
-                updates[dbKey] = aprobadorId;
             } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
                 updates[dbKey] = parseOrArray(value);
             } else if (clientKey === 'estructuraOrganizacional') {
@@ -230,6 +222,7 @@ export const reenviarFormulario = async (req, res) => {
             }
         }
         
+        // Reiniciar el flujo de aprobación
         updates.estado = 'pendiente por area';
         updates.observacion_area = null;
         updates.observacion_director = null;
@@ -237,9 +230,10 @@ export const reenviarFormulario = async (req, res) => {
         updates.observacion_calidad = null;
         updates.observacion_seguridad = null;
         updates.etapas_aprobadas = [];
-        updates.isConstruahorro = updatesData.isConstruahorro === 'true';
-        updates.isMegamayoristas = updatesData.isMegamayoristas === 'true';
+        updates.isConstruahorro = req.body.isConstruahorro === 'true';
+        updates.isMegamayoristas = req.body.isMegamayoristas === 'true';
 
+        // Validar que los IDs sean números válidos antes de la actualización
         if (isNaN(updates.area)) { return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' }); }
         if (isNaN(updates.director)) { return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' }); }
         if (isNaN(updates.gerencia)) { return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' }); }
@@ -270,17 +264,5 @@ export const reenviarFormulario = async (req, res) => {
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
-    }
-};
-
-const getAprobadorIdFromValue = async (value) => {
-    if (!value) return null;
-    const isNumber = !isNaN(value);
-    
-    if (isNumber) {
-        return parseInt(value);
-    } else {
-        const aprobador = await getAprobadorByEmail(value);
-        return aprobador ? aprobador.id : null;
     }
 };
