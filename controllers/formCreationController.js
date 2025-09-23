@@ -203,22 +203,37 @@ export const reenviarFormulario = async (req, res) => {
 
         const updates = {};
         
-        // Mapear campos de forma segura para evitar 'undefined'
-        for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
-            let value = req.body[clientKey];
-
-            if (['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(clientKey)) {
-                if (value) {
-                    updates[dbKey] = parseInt(value);
-                } else {
-                    updates[dbKey] = null; // Asigna null si no se envió un valor
+        // Mapeo y conversión segura de los IDs de aprobadores
+        const aprobadorKeys = ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
+        for (const key of aprobadorKeys) {
+            const value = updatesData[key];
+            if (value && typeof value === 'string' && !isNaN(value)) {
+                updates[fieldMapping[key]] = parseInt(value);
+            } else if (value && typeof value === 'string' && isNaN(value)) {
+                // Es un correo de una solicitud antigua, buscar el ID
+                const aprobador = await getAprobadorByEmail(value);
+                if (!aprobador) {
+                    return res.status(400).json({ error: `El aprobador de ${key} (${value}) no se encontró en la base de datos.` });
                 }
-            } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
-                updates[dbKey] = parseOrArray(value);
-            } else if (clientKey === 'estructuraOrganizacional') {
-                updates[dbKey] = estructuraOrganizacionalUrl;
-            } else if (value !== undefined) {
-                updates[dbKey] = value;
+                updates[fieldMapping[key]] = aprobador.id;
+            } else if (typeof value === 'number') {
+                updates[fieldMapping[key]] = value;
+            } else {
+                updates[fieldMapping[key]] = null; // Asignar null si no hay valor
+            }
+        }
+
+        // Mapeo de otros campos (se mantiene igual que la versión anterior)
+        for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
+            if (!aprobadorKeys.includes(clientKey)) {
+                let value = req.body[clientKey];
+                if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
+                    updates[dbKey] = parseOrArray(value);
+                } else if (clientKey === 'estructuraOrganizacional') {
+                    updates[dbKey] = estructuraOrganizacionalUrl;
+                } else if (value !== undefined) {
+                    updates[dbKey] = value;
+                }
             }
         }
         
@@ -230,9 +245,9 @@ export const reenviarFormulario = async (req, res) => {
         updates.observacion_calidad = null;
         updates.observacion_seguridad = null;
         updates.etapas_aprobadas = [];
-        updates.isConstruahorro = req.body.isConstruahorro === 'true';
-        updates.isMegamayoristas = req.body.isMegamayoristas === 'true';
-
+        updates.isConstruahorro = updatesData.isConstruahorro === 'true';
+        updates.isMegamayoristas = updatesData.isMegamayoristas === 'true';
+        
         // Validar que los IDs sean números válidos antes de la actualización
         if (isNaN(updates.area)) { return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' }); }
         if (isNaN(updates.director)) { return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' }); }
