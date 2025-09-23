@@ -15,6 +15,13 @@ import {
   obtenerHistorial,
   obtenerTodasLasSolicitudes
 } from '../controllers/formQueryController.js';
+import {
+    getAprobadores,
+    createAprobador,
+    updateAprobador,
+    deleteAprobador
+} from '../controllers/aprobadoresController.js'; // NUEVO: Importa el controlador
+
 
 const router = express.Router();
 
@@ -41,5 +48,11 @@ router.post('/dgdecision/:workflow_id/seguridad', upload.none(), respuestaSeguri
 // Rutas para consultas
 router.get('/yuli/:workflow_id', obtenerHistorial);
 router.get('/yuli', obtenerTodasLasSolicitudes);
+
+// Rutas para la gestión de aprobadores (NUEVAS)
+router.get('/aprobadores', getAprobadores);
+router.post('/aprobadores', createAprobador);
+router.put('/aprobadores/:id', updateAprobador);
+router.delete('/aprobadores/:id', deleteAprobador);
 
 export default router;
