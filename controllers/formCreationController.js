@@ -194,11 +194,11 @@ export const actualizarFormulario = async (req, res) => {
 
         // Validar área para todos los formularios ahora
         if (!area || !correoANombre[area]) {
-            console.error('Área no válida:', area);
+            console.error('Área no válida:', area, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
         if (!director || !correoANombre[director]) {
-            console.error('Director no válido:', director);
+            console.error('Director no válido:', director, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
@@ -320,7 +320,7 @@ export const crearFormulario = async (req, res) => {
 
         // Validar campos obligatorios
         const requiredFields = {
-            fecha, director, gerencia, calidad, seguridad, nombreCargo, areaGeneral, departamento, proceso,
+            fecha, director, gerencia, calidad, seguridad, area, nombreCargo, areaGeneral, departamento, proceso, // CAMBIO: area ahora requerido
             estructuraOrganizacional: estructuraOrganizacional ? estructuraOrganizacional[0] : null,
             escolaridad, area_formacion, experiencia, jefeInmediato, tipoContrato, misionCargo,
             competenciasCulturales, competenciasCargo, responsabilidades,
@@ -338,13 +338,11 @@ export const crearFormulario = async (req, res) => {
         const isMegamayoristasForm = isMegamayoristas === 'true' || isMegamayoristas === true;
 
         if (!area || !correoANombre[area]) {
-            // Merkahorro: área es obligatoria
-            console.error('Área no válida:', area);
+            console.error('Área no válida:', area, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
         if (!director || !correoANombre[director]) {
-            // Merkahorro: director es obligatorio
-            console.error('Director no válido:', director);
+            console.error('Director no válido:', director, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
@@ -548,11 +546,11 @@ export const reenviarFormulario = async (req, res) => {
 
         // Validar área para todos los formularios ahora
         if (!area || !correoANombre[area]) {
-            console.error('Área no válida:', area);
+            console.error('Área no válida:', area, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo área debe ser un correo electrónico válido' });
         }
         if (!director || !correoANombre[director]) {
-            console.error('Director no válido:', director);
+            console.error('Director no válido:', director, 'Correos válidos:', Object.keys(correoANombre));
             return res.status(400).json({ error: 'El campo director debe ser un correo electrónico válido' });
         }
 
@@ -844,7 +842,7 @@ export const decision = async (req, res) => {
 
         // Validar destinatario del siguiente correo (si aplica)
         if (decision === 'aprobar' && nextEmailRecipient) {
-            const validation = validateEmailRecipient(nextEmailRecipient, role === 'area' ? 'director' : role === 'director' ? 'gerencia' : role === 'gerencia' ? 'calidad' : 'seguridad');
+            const validation = validateEmailRecipient(nextEmailRecipient, role === 'director' ? 'gerencia' : role === 'gerencia' ? 'calidad' : 'seguridad');
             if (!validation.valid) {
                 console.error('Destinatario no válido para el siguiente paso:', nextEmailRecipient);
                 return res.status(400).json({ error: validation.error });
