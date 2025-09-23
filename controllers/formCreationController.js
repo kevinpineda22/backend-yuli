@@ -59,12 +59,10 @@ const getAprobadorById = async (id) => {
     return data;
 };
 
-// **Corregido**: Usa limit(1) para evitar el error de múltiples filas
 const getAprobadorByEmail = async (email) => {
     if (!email) return null;
     const { data, error } = await supabase.from('aprobadores').select('*').eq('correo', email).limit(1).single();
     if (error) {
-        // Si hay un error (ej. no se encuentra el correo o hay múltiples), retorna null
         console.error("Error al obtener aprobador por correo:", error);
         return null;
     }
@@ -194,7 +192,6 @@ export const reenviarFormulario = async (req, res) => {
         const { estructuraOrganizacional } = req.files || {};
         
         const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
-        
         if (fetchError || !solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
@@ -212,24 +209,18 @@ export const reenviarFormulario = async (req, res) => {
         }
 
         const updates = {};
-        
         const aprobadorKeys = ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
         
         for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
             let value = req.body[clientKey];
             
             if (aprobadorKeys.includes(clientKey)) {
-                if (value && !isNaN(value)) {
-                    updates[dbKey] = parseInt(value);
-                } else if (value) {
-                    const aprobador = await getAprobadorByEmail(value);
-                    if (!aprobador) {
-                        return res.status(400).json({ error: `El aprobador de ${clientKey} (${value}) no se encontró en la base de datos.` });
-                    }
-                    updates[dbKey] = aprobador.id;
-                } else {
-                    updates[dbKey] = null;
+                // Llama a la nueva función auxiliar para obtener el ID de forma segura
+                const aprobadorId = await getAprobadorIdFromValue(value);
+                if (aprobadorId === null) {
+                    return res.status(400).json({ error: `El aprobador de ${clientKey} (${value}) no es válido o no se encontró en la base de datos.` });
                 }
+                updates[dbKey] = aprobadorId;
             } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
                 updates[dbKey] = parseOrArray(value);
             } else if (clientKey === 'estructuraOrganizacional') {
@@ -279,5 +270,17 @@ export const reenviarFormulario = async (req, res) => {
     } catch (err) {
         console.error("Error en reenviarFormulario:", err);
         res.status(500).json({ error: err.message || "Error interno al reenviar solicitud" });
+    }
+};
+
+const getAprobadorIdFromValue = async (value) => {
+    if (!value) return null;
+    const isNumber = !isNaN(value);
+    
+    if (isNumber) {
+        return parseInt(value);
+    } else {
+        const aprobador = await getAprobadorByEmail(value);
+        return aprobador ? aprobador.id : null;
     }
 };
