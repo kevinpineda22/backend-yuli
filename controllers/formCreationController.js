@@ -70,6 +70,19 @@ const getAprobadorByEmail = async (email) => {
     return data;
 };
 
+const getAprobadorIdFromValue = async (value) => {
+    if (!value) return null;
+    const isNumber = !isNaN(value);
+    
+    if (isNumber) {
+        // Es un ID numérico
+        return parseInt(value);
+    } else {
+        // Es una cadena (correo antiguo), buscar el ID
+        const aprobador = await getAprobadorByEmail(value);
+        return aprobador ? aprobador.id : null;
+    }
+};
 
 function parseOrArray(val) {
     if (Array.isArray(val)) return val;
@@ -196,7 +209,6 @@ export const reenviarFormulario = async (req, res) => {
         const { estructuraOrganizacional } = req.files || {};
         
         const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
-        
         if (fetchError || !solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
@@ -214,24 +226,18 @@ export const reenviarFormulario = async (req, res) => {
         }
 
         const updates = {};
-        
         const aprobadorKeys = ['area', 'director', 'gerencia', 'calidad', 'seguridad'];
         
         for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
             let value = req.body[clientKey];
 
             if (aprobadorKeys.includes(clientKey)) {
-                if (value && !isNaN(value)) {
-                    updates[dbKey] = parseInt(value);
-                } else if (value) {
-                    const aprobador = await getAprobadorByEmail(value);
-                    if (!aprobador) {
-                        return res.status(400).json({ error: `El aprobador de ${clientKey} (${value}) no se encontró en la base de datos.` });
-                    }
-                    updates[dbKey] = aprobador.id;
-                } else {
-                    updates[dbKey] = null;
+                // Llama a la nueva función auxiliar para obtener el ID de forma segura
+                const aprobadorId = await getAprobadorIdFromValue(value);
+                if (aprobadorId === null) {
+                    return res.status(400).json({ error: `El aprobador de ${clientKey} no es válido o no se encontró en la base de datos.` });
                 }
+                updates[dbKey] = aprobadorId;
             } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
                 updates[dbKey] = parseOrArray(value);
             } else if (clientKey === 'estructuraOrganizacional') {
@@ -250,13 +256,6 @@ export const reenviarFormulario = async (req, res) => {
         updates.etapas_aprobadas = [];
         updates.isConstruahorro = updatesData.isConstruahorro === 'true';
         updates.isMegamayoristas = updatesData.isMegamayoristas === 'true';
-
-        // Validar que los IDs sean números válidos antes de la actualización
-        if (isNaN(updates.area)) { return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' }); }
-        if (isNaN(updates.director)) { return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' }); }
-        if (isNaN(updates.gerencia)) { return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' }); }
-        if (isNaN(updates.calidad)) { return res.status(400).json({ error: 'El ID del aprobador de calidad no es válido.' }); }
-        if (isNaN(updates.seguridad)) { return res.status(400).json({ error: 'El ID del aprobador de seguridad no es válido.' }); }
 
         const { data: updated, error: updateError } = await supabase.from('yuli').update(updates).eq('id', id).select().single();
         if (updateError) {
