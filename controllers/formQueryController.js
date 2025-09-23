@@ -27,16 +27,22 @@ const fieldMapping = {
     fecha: 'fecha',
     director: 'director',
     gerencia: 'gerencia',
+    calidad: 'calidad',
     seguridad: 'seguridad',
     area: 'area',
     isConstruahorro: 'isConstruahorro',
+    isMegamayoristas: 'isMegamayoristas',
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
+    indicadores_gestion: 'indicadores_gestion',
+    requisitos_fisicos: 'requisitos_fisicos',
+    riesgos_obligaciones_sst_organizacionales: 'riesgos_obligaciones_sst_organizacionales',
+    riesgos_obligaciones_sst_especificos: 'riesgos_obligaciones_sst_especificos',
     planEntrenamiento: 'plan_entrenamiento',
     planCapacitacionContinua: 'plan_capacitacion_continua',
     planCarrera: 'plan_carrera',
-    competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso'
+    competenciasDesarrolloIngreso: 'competencias_desarrollo_ingreso',
 };
 
 // Mapeo inverso para traducir de los nombres de la base de datos a los del frontend
@@ -44,22 +50,29 @@ const inverseFieldMapping = Object.fromEntries(
     Object.entries(fieldMapping).map(([key, value]) => [value, key])
 );
 
-// Función auxiliar para procesar los datos
+// **Función corregida**: Intenta parsear JSON, si falla, devuelve el valor como un array con un solo elemento.
+function parseOrArray(val) {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
+        try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            if (typeof parsed === 'object') return [parsed];
+        } catch {
+            return [val];
+        }
+    }
+    return val ? [val] : [];
+}
+
 const processData = (data) => {
     return data.map(item => {
         const newItem = {};
         for (const [dbKey, value] of Object.entries(item)) {
             const frontEndKey = inverseFieldMapping[dbKey] || dbKey;
             
-            // Convertir los strings JSON a objetos de JavaScript para campos JSONb
-            if (['competencias_culturales', 'competencias_cargo', 'responsabilidades', 'plan_entrenamiento', 'plan_capacitacion_continua'].includes(dbKey)) {
-                try {
-                    // Si el valor existe, se parsea. Si no, se devuelve un array vacío.
-                    newItem[frontEndKey] = value ? JSON.parse(value) : [];
-                } catch (e) {
-                    console.error(`Error al parsear JSONb para ${dbKey}:`, e);
-                    newItem[frontEndKey] = [];
-                }
+            if (['poblacionfocalizada', 'competencias_culturales', 'competencias_cargo', 'responsabilidades', 'plan_entrenamiento', 'plan_capacitacion_continua'].includes(dbKey)) {
+                newItem[frontEndKey] = parseOrArray(value);
             } else {
                 newItem[frontEndKey] = value;
             }
