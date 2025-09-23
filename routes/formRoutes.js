@@ -2,7 +2,6 @@ import express from 'express';
 import {
   crearFormulario,
   reenviarFormulario,
-  actualizarFormulario,
   upload
 } from '../controllers/formCreationController.js';
 import {
@@ -30,10 +29,7 @@ router.post('/yuli/resend/:id', upload.fields([
   { name: 'estructuraOrganizacional', maxCount: 1 }
 ]), reenviarFormulario);
 
-router.put('/yuli/:id', upload.fields([
-  { name: 'documento', maxCount: 1 },
-  { name: 'estructuraOrganizacional', maxCount: 1 }
-]), actualizarFormulario);
+
 
 // Rutas para respuestas
 router.post('/dgdecision/:workflow_id/area', respuestaArea);
