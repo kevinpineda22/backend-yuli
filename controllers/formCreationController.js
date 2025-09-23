@@ -90,6 +90,7 @@ export const crearFormulario = async (req, res) => {
         const isConstruahorroForm = isConstruahorro === 'true';
         const isMegamayoristasForm = isMegamayoristas === 'true';
 
+        // Validaciones...
         const requiredFields = {
             ...formDataFromClient,
             poblacionFocalizada,
@@ -122,61 +123,34 @@ export const crearFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El archivo de estructura organizacional es obligatorio' });
         }
 
-        const dataToInsert = {
-            [fieldMapping.fecha]: formDataFromClient.fecha,
-            [fieldMapping.nombreCargo]: formDataFromClient.nombreCargo,
-            [fieldMapping.areaGeneral]: formDataFromClient.areaGeneral,
-            [fieldMapping.departamento]: formDataFromClient.departamento,
-            [fieldMapping.proceso]: formDataFromClient.proceso,
-            [fieldMapping.escolaridad]: formDataFromClient.escolaridad,
-            [fieldMapping.area_formacion]: formDataFromClient.area_formacion,
-            [fieldMapping.estudiosComplementarios]: formDataFromClient.estudiosComplementarios,
-            [fieldMapping.experiencia]: formDataFromClient.experiencia,
-            [fieldMapping.jefeInmediato]: formDataFromClient.jefeInmediato,
-            [fieldMapping.supervisaA]: formDataFromClient.supervisaA,
-            [fieldMapping.numeroPersonasCargo]: formDataFromClient.numeroPersonasCargo ? parseInt(formDataFromClient.numeroPersonasCargo) : null,
-            [fieldMapping.tipoContrato]: formDataFromClient.tipoContrato,
-            [fieldMapping.misionCargo]: formDataFromClient.misionCargo,
-            [fieldMapping.cursosCertificaciones]: formDataFromClient.cursosCertificaciones,
-            [fieldMapping.requiereVehiculo]: formDataFromClient.requiereVehiculo,
-            [fieldMapping.tipoLicencia]: formDataFromClient.tipoLicencia,
-            [fieldMapping.idiomas]: formDataFromClient.idiomas,
-            [fieldMapping.requiereViajar]: formDataFromClient.requiereViajar,
-            [fieldMapping.areasRelacionadas]: formDataFromClient.areasRelacionadas,
-            [fieldMapping.relacionamientoExterno]: formDataFromClient.relacionamientoExterno,
-            [fieldMapping.indicadores_gestion]: formDataFromClient.indicadoresGestion,
-            [fieldMapping.requisitos_fisicos]: formDataFromClient.requisitosFisicos,
-            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: formDataFromClient.riesgosObligacionesOrg,
-            [fieldMapping.riesgos_obligaciones_sst_especificos]: formDataFromClient.riesgosObligacionesEsp,
-            [fieldMapping.planCarrera]: formDataFromClient.planCarrera,
-            [fieldMapping.competenciasDesarrolloIngreso]: formDataFromClient.competenciasDesarrolloIngreso,
-            
-            [fieldMapping.poblacionFocalizada]: parseOrArray(poblacionFocalizada),
-            [fieldMapping.competenciasCulturales]: parseOrArray(competenciasCulturales),
-            [fieldMapping.competenciasCargo]: parseOrArray(competenciasCargo),
-            [fieldMapping.responsabilidades]: parseOrArray(responsabilidades),
-            [fieldMapping.planEntrenamiento]: parseOrArray(planEntrenamiento),
-            [fieldMapping.planCapacitacionContinua]: parseOrArray(planCapacitacionContinua),
-            
-            [fieldMapping.area]: parseInt(formDataFromClient.area),
-            [fieldMapping.director]: parseInt(formDataFromClient.director),
-            [fieldMapping.gerencia]: parseInt(formDataFromClient.gerencia),
-            [fieldMapping.calidad]: parseInt(formDataFromClient.calidad),
-            [fieldMapping.seguridad]: parseInt(formDataFromClient.seguridad),
-            
-            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            estado: 'pendiente por area',
-            observacion_area: null,
-            observacion_director: null,
-            observacion_gerencia: null,
-            observacion_calidad: null,
-            observacion_seguridad: null,
-            role: 'creador',
-            isConstruahorro: isConstruahorroForm,
-            isMegamayoristas: isMegamayoristasForm,
-            etapas_aprobadas: [],
-        };
+        const dataToInsert = {};
+
+        // Mapear campos del cliente a las columnas de la base de datos
+        for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
+            let value = req.body[clientKey];
+
+            if (['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(clientKey)) {
+                dataToInsert[dbKey] = parseInt(value);
+            } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
+                dataToInsert[dbKey] = parseOrArray(value);
+            } else if (clientKey === 'estructuraOrganizacional') {
+                dataToInsert[dbKey] = estructuraOrganizacionalUrl;
+            } else if (value !== undefined) {
+                dataToInsert[dbKey] = value;
+            }
+        }
         
+        dataToInsert.estado = 'pendiente por area';
+        dataToInsert.observacion_area = null;
+        dataToInsert.observacion_director = null;
+        dataToInsert.observacion_gerencia = null;
+        dataToInsert.observacion_calidad = null;
+        dataToInsert.observacion_seguridad = null;
+        dataToInsert.role = 'creador';
+        dataToInsert.etapas_aprobadas = [];
+        dataToInsert.isConstruahorro = isConstruahorroForm;
+        dataToInsert.isMegamayoristas = isMegamayoristasForm;
+
         const { data, error } = await supabase.from('yuli').insert(dataToInsert).select().single();
         if (error) {
             console.error("Error al insertar en Supabase:", error);
