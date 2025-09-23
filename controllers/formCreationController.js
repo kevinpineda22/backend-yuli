@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { sendEmail, generarHtmlCorreoArea } from '../services/emailService.js';
+import { sendEmail, generarHtmlCorreoArea, generarHtmlCorreoDirector, generarHtmlCorreoGerencia, generarHtmlCorreoCalidad, generarHtmlCorreoSeguridad } from '../services/emailService.js';
 import supabase from '../supabaseCliente.js';
 
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -39,10 +39,10 @@ const fieldMapping = {
     competenciasCulturales: 'competencias_culturales',
     competenciasCargo: 'competencias_cargo',
     responsabilidades: 'responsabilidades',
-    indicadores_gestion: 'indicadores_gestion',
-    requisitos_fisicos: 'requisitos_fisicos',
-    riesgos_obligaciones_sst_organizacionales: 'riesgos_obligaciones_sst_organizacionales',
-    riesgos_obligaciones_sst_especificos: 'riesgos_obligaciones_sst_especificos',
+    indicadoresGestion: 'indicadores_gestion',
+    requisitosFisicos: 'requisitos_fisicos',
+    riesgosObligacionesOrg: 'riesgos_obligaciones_sst_organizacionales',
+    riesgosObligacionesEsp: 'riesgos_obligaciones_sst_especificos',
     planEntrenamiento: 'plan_entrenamiento',
     planCapacitacionContinua: 'plan_capacitacion_continua',
     planCarrera: 'plan_carrera',
@@ -82,7 +82,7 @@ export const crearFormulario = async (req, res) => {
             responsabilidades,
             planEntrenamiento,
             planCapacitacionContinua,
-            ...formDataFromClient 
+            ...formDataFromClient
         } = req.body;
         
         const { estructuraOrganizacional } = req.files || {};
@@ -123,18 +123,47 @@ export const crearFormulario = async (req, res) => {
         }
 
         const dataToInsert = {
-            ...formDataFromClient,
-            [fieldMapping.area]: parseInt(formDataFromClient.area),
-            [fieldMapping.director]: parseInt(formDataFromClient.director),
-            [fieldMapping.gerencia]: parseInt(formDataFromClient.gerencia),
-            [fieldMapping.calidad]: parseInt(formDataFromClient.calidad),
-            [fieldMapping.seguridad]: parseInt(formDataFromClient.seguridad),
+            [fieldMapping.fecha]: formDataFromClient.fecha,
+            [fieldMapping.nombreCargo]: formDataFromClient.nombreCargo,
+            [fieldMapping.areaGeneral]: formDataFromClient.areaGeneral,
+            [fieldMapping.departamento]: formDataFromClient.departamento,
+            [fieldMapping.proceso]: formDataFromClient.proceso,
+            [fieldMapping.escolaridad]: formDataFromClient.escolaridad,
+            [fieldMapping.area_formacion]: formDataFromClient.area_formacion,
+            [fieldMapping.estudiosComplementarios]: formDataFromClient.estudiosComplementarios,
+            [fieldMapping.experiencia]: formDataFromClient.experiencia,
+            [fieldMapping.jefeInmediato]: formDataFromClient.jefeInmediato,
+            [fieldMapping.supervisaA]: formDataFromClient.supervisaA,
+            [fieldMapping.numeroPersonasCargo]: formDataFromClient.numeroPersonasCargo ? parseInt(formDataFromClient.numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: formDataFromClient.tipoContrato,
+            [fieldMapping.misionCargo]: formDataFromClient.misionCargo,
+            [fieldMapping.cursosCertificaciones]: formDataFromClient.cursosCertificaciones,
+            [fieldMapping.requiereVehiculo]: formDataFromClient.requiereVehiculo,
+            [fieldMapping.tipoLicencia]: formDataFromClient.tipoLicencia,
+            [fieldMapping.idiomas]: formDataFromClient.idiomas,
+            [fieldMapping.requiereViajar]: formDataFromClient.requiereViajar,
+            [fieldMapping.areasRelacionadas]: formDataFromClient.areasRelacionadas,
+            [fieldMapping.relacionamientoExterno]: formDataFromClient.relacionamientoExterno,
+            [fieldMapping.indicadores_gestion]: formDataFromClient.indicadoresGestion,
+            [fieldMapping.requisitos_fisicos]: formDataFromClient.requisitosFisicos,
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: formDataFromClient.riesgosObligacionesOrg,
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: formDataFromClient.riesgosObligacionesEsp,
+            [fieldMapping.planCarrera]: formDataFromClient.planCarrera,
+            [fieldMapping.competenciasDesarrolloIngreso]: formDataFromClient.competenciasDesarrolloIngreso,
+            
             [fieldMapping.poblacionFocalizada]: parseOrArray(poblacionFocalizada),
             [fieldMapping.competenciasCulturales]: parseOrArray(competenciasCulturales),
             [fieldMapping.competenciasCargo]: parseOrArray(competenciasCargo),
             [fieldMapping.responsabilidades]: parseOrArray(responsabilidades),
             [fieldMapping.planEntrenamiento]: parseOrArray(planEntrenamiento),
             [fieldMapping.planCapacitacionContinua]: parseOrArray(planCapacitacionContinua),
+            
+            [fieldMapping.area]: parseInt(formDataFromClient.area),
+            [fieldMapping.director]: parseInt(formDataFromClient.director),
+            [fieldMapping.gerencia]: parseInt(formDataFromClient.gerencia),
+            [fieldMapping.calidad]: parseInt(formDataFromClient.calidad),
+            [fieldMapping.seguridad]: parseInt(formDataFromClient.seguridad),
+            
             [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             estado: 'pendiente por area',
             observacion_area: null,
@@ -179,15 +208,12 @@ export const reenviarFormulario = async (req, res) => {
         const { id } = req.params;
         const { keepExistingFile, existingFileUrl, ...updatesData } = req.body;
         const { estructuraOrganizacional } = req.files || {};
+        const { data: solicitud } = await supabase.from('yuli').select('*').eq('id', id).single();
         
-        // Obtener la solicitud original para asegurar la consistencia
-        const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
-        
-        if (fetchError || !solicitud) {
+        if (!solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
         
-        // Manejar la carga o conservación del archivo de estructura organizacional
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -200,52 +226,49 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
-        // Mapeo y conversión explícita de datos para evitar errores de tipo
         const updates = {
+            [fieldMapping.fecha]: updatesData.fecha,
             [fieldMapping.nombreCargo]: updatesData.nombreCargo,
             [fieldMapping.areaGeneral]: updatesData.areaGeneral,
             [fieldMapping.departamento]: updatesData.departamento,
             [fieldMapping.proceso]: updatesData.proceso,
-            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            [fieldMapping.poblacionFocalizada]: parseOrArray(updatesData.poblacionFocalizada),
             [fieldMapping.escolaridad]: updatesData.escolaridad,
             [fieldMapping.area_formacion]: updatesData.area_formacion,
-            [fieldMapping.estudiosComplementarios]: updatesData.estudiosComplementarios || null,
+            [fieldMapping.estudiosComplementarios]: updatesData.estudiosComplementarios,
             [fieldMapping.experiencia]: updatesData.experiencia,
             [fieldMapping.jefeInmediato]: updatesData.jefeInmediato,
-            [fieldMapping.supervisaA]: updatesData.supervisaA || null,
+            [fieldMapping.supervisaA]: updatesData.supervisaA,
             [fieldMapping.numeroPersonasCargo]: updatesData.numeroPersonasCargo ? parseInt(updatesData.numeroPersonasCargo) : null,
             [fieldMapping.tipoContrato]: updatesData.tipoContrato,
             [fieldMapping.misionCargo]: updatesData.misionCargo,
-            [fieldMapping.cursosCertificaciones]: updatesData.cursosCertificaciones || null,
-            [fieldMapping.requiereVehiculo]: updatesData.requiereVehiculo || null,
-            [fieldMapping.tipoLicencia]: updatesData.tipoLicencia || null,
-            [fieldMapping.idiomas]: updatesData.idiomas || null,
-            [fieldMapping.requiereViajar]: updatesData.requiereViajar || null,
-            [fieldMapping.areasRelacionadas]: updatesData.areasRelacionadas || null,
-            [fieldMapping.relacionamientoExterno]: updatesData.relacionamientoExterno || null,
+            [fieldMapping.cursosCertificaciones]: updatesData.cursosCertificaciones,
+            [fieldMapping.requiereVehiculo]: updatesData.requiereVehiculo,
+            [fieldMapping.tipoLicencia]: updatesData.tipoLicencia,
+            [fieldMapping.idiomas]: updatesData.idiomas,
+            [fieldMapping.requiereViajar]: updatesData.requiereViajar,
+            [fieldMapping.areasRelacionadas]: updatesData.areasRelacionadas,
+            [fieldMapping.relacionamientoExterno]: updatesData.relacionamientoExterno,
+            [fieldMapping.indicadores_gestion]: updatesData.indicadoresGestion,
+            [fieldMapping.requisitos_fisicos]: updatesData.requisitosFisicos,
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: updatesData.riesgosObligacionesOrg,
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: updatesData.riesgosObligacionesEsp,
+            [fieldMapping.planCarrera]: updatesData.planCarrera,
+            [fieldMapping.competenciasDesarrolloIngreso]: updatesData.competenciasDesarrolloIngreso,
+
+            [fieldMapping.poblacionFocalizada]: parseOrArray(updatesData.poblacionFocalizada),
             [fieldMapping.competenciasCulturales]: parseOrArray(updatesData.competenciasCulturales),
             [fieldMapping.competenciasCargo]: parseOrArray(updatesData.competenciasCargo),
             [fieldMapping.responsabilidades]: parseOrArray(updatesData.responsabilidades),
-            [fieldMapping.indicadores_gestion]: updatesData.indicadoresGestion || null,
-            [fieldMapping.requisitos_fisicos]: updatesData.requisitosFisicos || null,
-            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: updatesData.riesgosObligacionesOrg || null,
-            [fieldMapping.riesgos_obligaciones_sst_especificos]: updatesData.riesgosObligacionesEsp || null,
             [fieldMapping.planEntrenamiento]: parseOrArray(updatesData.planEntrenamiento),
             [fieldMapping.planCapacitacionContinua]: parseOrArray(updatesData.planCapacitacionContinua),
-            [fieldMapping.planCarrera]: updatesData.planCarrera || null,
-            [fieldMapping.competenciasDesarrolloIngreso]: updatesData.competenciasDesarrolloIngreso || null,
-            [fieldMapping.isConstruahorro]: updatesData.isConstruahorro === 'true',
-            [fieldMapping.isMegamayoristas]: updatesData.isMegamayoristas === 'true',
             
-            // Convertir a enteros para los IDs de los aprobadores
             [fieldMapping.area]: parseInt(updatesData.area),
             [fieldMapping.director]: parseInt(updatesData.director),
             [fieldMapping.gerencia]: parseInt(updatesData.gerencia),
             [fieldMapping.calidad]: parseInt(updatesData.calidad),
             [fieldMapping.seguridad]: parseInt(updatesData.seguridad),
-
-            // Reiniciar el flujo de aprobación
+            
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
             estado: 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
@@ -253,24 +276,15 @@ export const reenviarFormulario = async (req, res) => {
             observacion_calidad: null,
             observacion_seguridad: null,
             etapas_aprobadas: [],
+            isConstruahorro: updatesData.isConstruahorro === 'true',
+            isMegamayoristas: updatesData.isMegamayoristas === 'true',
         };
-        
-        // **Validar que los IDs sean números válidos**
-        if (isNaN(updates.area)) {
-             return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' });
-        }
-        if (isNaN(updates.director)) {
-             return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' });
-        }
-        if (isNaN(updates.gerencia)) {
-             return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' });
-        }
-        if (isNaN(updates.calidad)) {
-             return res.status(400).json({ error: 'El ID del aprobador de calidad no es válido.' });
-        }
-        if (isNaN(updates.seguridad)) {
-             return res.status(400).json({ error: 'El ID del aprobador de seguridad no es válido.' });
-        }
+
+        if (isNaN(updates.area)) { return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' }); }
+        if (isNaN(updates.director)) { return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' }); }
+        if (isNaN(updates.gerencia)) { return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' }); }
+        if (isNaN(updates.calidad)) { return res.status(400).json({ error: 'El ID del aprobador de calidad no es válido.' }); }
+        if (isNaN(updates.seguridad)) { return res.status(400).json({ error: 'El ID del aprobador de seguridad no es válido.' }); }
 
         const { data: updated, error: updateError } = await supabase.from('yuli').update(updates).eq('id', id).select().single();
         if (updateError) {
@@ -279,10 +293,6 @@ export const reenviarFormulario = async (req, res) => {
         }
         
         const aprobadorArea = await getAprobadorById(updated.area);
-        if (!aprobadorArea) {
-            return res.status(400).json({ error: 'El aprobador de área no es válido o no se encontró.' });
-        }
-        
         const emailData = await generarHtmlCorreoArea({
             ...updated,
             aprobador: aprobadorArea,
