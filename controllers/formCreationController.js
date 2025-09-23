@@ -182,9 +182,10 @@ export const reenviarFormulario = async (req, res) => {
         const { id } = req.params;
         const { keepExistingFile, existingFileUrl, ...updatesData } = req.body;
         const { estructuraOrganizacional } = req.files || {};
-        const { data: solicitud } = await supabase.from('yuli').select('*').eq('id', id).single();
         
-        if (!solicitud) {
+        const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
+        
+        if (fetchError || !solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
         
@@ -200,60 +201,39 @@ export const reenviarFormulario = async (req, res) => {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
 
-        const updates = {
-            [fieldMapping.fecha]: updatesData.fecha,
-            [fieldMapping.nombreCargo]: updatesData.nombreCargo,
-            [fieldMapping.areaGeneral]: updatesData.areaGeneral,
-            [fieldMapping.departamento]: updatesData.departamento,
-            [fieldMapping.proceso]: updatesData.proceso,
-            [fieldMapping.escolaridad]: updatesData.escolaridad,
-            [fieldMapping.area_formacion]: updatesData.area_formacion,
-            [fieldMapping.estudiosComplementarios]: updatesData.estudiosComplementarios,
-            [fieldMapping.experiencia]: updatesData.experiencia,
-            [fieldMapping.jefeInmediato]: updatesData.jefeInmediato,
-            [fieldMapping.supervisaA]: updatesData.supervisaA,
-            [fieldMapping.numeroPersonasCargo]: updatesData.numeroPersonasCargo ? parseInt(updatesData.numeroPersonasCargo) : null,
-            [fieldMapping.tipoContrato]: updatesData.tipoContrato,
-            [fieldMapping.misionCargo]: updatesData.misionCargo,
-            [fieldMapping.cursosCertificaciones]: updatesData.cursosCertificaciones,
-            [fieldMapping.requiereVehiculo]: updatesData.requiereVehiculo,
-            [fieldMapping.tipoLicencia]: updatesData.tipoLicencia,
-            [fieldMapping.idiomas]: updatesData.idiomas,
-            [fieldMapping.requiereViajar]: updatesData.requiereViajar,
-            [fieldMapping.areasRelacionadas]: updatesData.areasRelacionadas,
-            [fieldMapping.relacionamientoExterno]: updatesData.relacionamientoExterno,
-            [fieldMapping.indicadores_gestion]: updatesData.indicadoresGestion,
-            [fieldMapping.requisitos_fisicos]: updatesData.requisitosFisicos,
-            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: updatesData.riesgosObligacionesOrg,
-            [fieldMapping.riesgos_obligaciones_sst_especificos]: updatesData.riesgosObligacionesEsp,
-            [fieldMapping.planCarrera]: updatesData.planCarrera,
-            [fieldMapping.competenciasDesarrolloIngreso]: updatesData.competenciasDesarrolloIngreso,
+        const updates = {};
+        
+        // Mapear campos de forma segura para evitar 'undefined'
+        for (const [clientKey, dbKey] of Object.entries(fieldMapping)) {
+            let value = req.body[clientKey];
 
-            [fieldMapping.poblacionFocalizada]: parseOrArray(updatesData.poblacionFocalizada),
-            [fieldMapping.competenciasCulturales]: parseOrArray(updatesData.competenciasCulturales),
-            [fieldMapping.competenciasCargo]: parseOrArray(updatesData.competenciasCargo),
-            [fieldMapping.responsabilidades]: parseOrArray(updatesData.responsabilidades),
-            [fieldMapping.planEntrenamiento]: parseOrArray(updatesData.planEntrenamiento),
-            [fieldMapping.planCapacitacionContinua]: parseOrArray(updatesData.planCapacitacionContinua),
-            
-            [fieldMapping.area]: parseInt(updatesData.area),
-            [fieldMapping.director]: parseInt(updatesData.director),
-            [fieldMapping.gerencia]: parseInt(updatesData.gerencia),
-            [fieldMapping.calidad]: parseInt(updatesData.calidad),
-            [fieldMapping.seguridad]: parseInt(updatesData.seguridad),
-            
-            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
-            estado: 'pendiente por area',
-            observacion_area: null,
-            observacion_director: null,
-            observacion_gerencia: null,
-            observacion_calidad: null,
-            observacion_seguridad: null,
-            etapas_aprobadas: [],
-            isConstruahorro: updatesData.isConstruahorro === 'true',
-            isMegamayoristas: updatesData.isMegamayoristas === 'true',
-        };
+            if (['area', 'director', 'gerencia', 'calidad', 'seguridad'].includes(clientKey)) {
+                if (value) {
+                    updates[dbKey] = parseInt(value);
+                } else {
+                    updates[dbKey] = null; // Asigna null si no se envió un valor
+                }
+            } else if (['poblacionFocalizada', 'competenciasCulturales', 'competenciasCargo', 'responsabilidades', 'planEntrenamiento', 'planCapacitacionContinua'].includes(clientKey)) {
+                updates[dbKey] = parseOrArray(value);
+            } else if (clientKey === 'estructuraOrganizacional') {
+                updates[dbKey] = estructuraOrganizacionalUrl;
+            } else if (value !== undefined) {
+                updates[dbKey] = value;
+            }
+        }
+        
+        // Reiniciar el flujo de aprobación
+        updates.estado = 'pendiente por area';
+        updates.observacion_area = null;
+        updates.observacion_director = null;
+        updates.observacion_gerencia = null;
+        updates.observacion_calidad = null;
+        updates.observacion_seguridad = null;
+        updates.etapas_aprobadas = [];
+        updates.isConstruahorro = req.body.isConstruahorro === 'true';
+        updates.isMegamayoristas = req.body.isMegamayoristas === 'true';
 
+        // Validar que los IDs sean números válidos antes de la actualización
         if (isNaN(updates.area)) { return res.status(400).json({ error: 'El ID del aprobador de área no es válido.' }); }
         if (isNaN(updates.director)) { return res.status(400).json({ error: 'El ID del aprobador del director no es válido.' }); }
         if (isNaN(updates.gerencia)) { return res.status(400).json({ error: 'El ID del aprobador de gerencia no es válido.' }); }
@@ -267,6 +247,10 @@ export const reenviarFormulario = async (req, res) => {
         }
         
         const aprobadorArea = await getAprobadorById(updated.area);
+        if (!aprobadorArea) {
+            return res.status(400).json({ error: 'El aprobador de área no es válido o no se encontró.' });
+        }
+        
         const emailData = await generarHtmlCorreoArea({
             ...updated,
             aprobador: aprobadorArea,
