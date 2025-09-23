@@ -179,15 +179,13 @@ export const reenviarFormulario = async (req, res) => {
         const { id } = req.params;
         const { keepExistingFile, existingFileUrl, ...updatesData } = req.body;
         const { estructuraOrganizacional } = req.files || {};
-        const { data: solicitud } = await supabase.from('yuli').select('*').eq('id', id).single();
         
+        // Obtener la solicitud original para asegurar la consistencia
+        const { data: solicitud } = await supabase.from('yuli').select('*').eq('id', id).single();
         if (!solicitud) {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
         
-        const isConstruahorroForm = solicitud.isConstruahorro;
-        const isMegamayoristasForm = solicitud.isMegamayoristas;
-
         let estructuraOrganizacionalUrl = null;
         if (estructuraOrganizacional && estructuraOrganizacional[0]) {
             const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
@@ -199,10 +197,53 @@ export const reenviarFormulario = async (req, res) => {
         } else {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
-
+        
+        // Mapeo explícito de los campos para la actualización
         const updates = {
-            ...updatesData,
-            estructuraorganizacional: estructuraOrganizacionalUrl,
+            [fieldMapping.nombreCargo]: updatesData.nombreCargo,
+            [fieldMapping.areaGeneral]: updatesData.areaGeneral,
+            [fieldMapping.departamento]: updatesData.departamento,
+            [fieldMapping.proceso]: updatesData.proceso,
+            [fieldMapping.estructuraOrganizacional]: estructuraOrganizacionalUrl,
+            [fieldMapping.poblacionFocalizada]: parseOrArray(updatesData.poblacionFocalizada),
+            [fieldMapping.escolaridad]: updatesData.escolaridad,
+            [fieldMapping.area_formacion]: updatesData.area_formacion,
+            [fieldMapping.estudiosComplementarios]: updatesData.estudiosComplementarios || null,
+            [fieldMapping.experiencia]: updatesData.experiencia,
+            [fieldMapping.jefeInmediato]: updatesData.jefeInmediato,
+            [fieldMapping.supervisaA]: updatesData.supervisaA || null,
+            [fieldMapping.numeroPersonasCargo]: updatesData.numeroPersonasCargo ? parseInt(updatesData.numeroPersonasCargo) : null,
+            [fieldMapping.tipoContrato]: updatesData.tipoContrato,
+            [fieldMapping.misionCargo]: updatesData.misionCargo,
+            [fieldMapping.cursosCertificaciones]: updatesData.cursosCertificaciones || null,
+            [fieldMapping.requiereVehiculo]: updatesData.requiereVehiculo || null,
+            [fieldMapping.tipoLicencia]: updatesData.tipoLicencia || null,
+            [fieldMapping.idiomas]: updatesData.idiomas || null,
+            [fieldMapping.requiereViajar]: updatesData.requiereViajar || null,
+            [fieldMapping.areasRelacionadas]: updatesData.areasRelacionadas || null,
+            [fieldMapping.relacionamientoExterno]: updatesData.relacionamientoExterno || null,
+            [fieldMapping.competenciasCulturales]: parseOrArray(updatesData.competenciasCulturales),
+            [fieldMapping.competenciasCargo]: parseOrArray(updatesData.competenciasCargo),
+            [fieldMapping.responsabilidades]: parseOrArray(updatesData.responsabilidades),
+            [fieldMapping.indicadores_gestion]: updatesData.indicadoresGestion || null,
+            [fieldMapping.requisitos_fisicos]: updatesData.requisitosFisicos || null,
+            [fieldMapping.riesgos_obligaciones_sst_organizacionales]: updatesData.riesgosObligacionesOrg || null,
+            [fieldMapping.riesgos_obligaciones_sst_especificos]: updatesData.riesgosObligacionesEsp || null,
+            [fieldMapping.planEntrenamiento]: parseOrArray(updatesData.planEntrenamiento),
+            [fieldMapping.planCapacitacionContinua]: parseOrArray(updatesData.planCapacitacionContinua),
+            [fieldMapping.planCarrera]: updatesData.planCarrera || null,
+            [fieldMapping.competenciasDesarrolloIngreso]: updatesData.competenciasDesarrolloIngreso || null,
+            [fieldMapping.isConstruahorro]: solicitud.isConstruahorro,
+            [fieldMapping.isMegamayoristas]: solicitud.isMegamayoristas,
+            
+            // Campos de aprobación, convertidos a enteros
+            [fieldMapping.area]: parseInt(updatesData.area),
+            [fieldMapping.director]: parseInt(updatesData.director),
+            [fieldMapping.gerencia]: parseInt(updatesData.gerencia),
+            [fieldMapping.calidad]: parseInt(updatesData.calidad),
+            [fieldMapping.seguridad]: parseInt(updatesData.seguridad),
+
+            // Reiniciar el flujo de aprobación
             estado: 'pendiente por area',
             observacion_area: null,
             observacion_director: null,
@@ -210,25 +251,19 @@ export const reenviarFormulario = async (req, res) => {
             observacion_calidad: null,
             observacion_seguridad: null,
             etapas_aprobadas: [],
-            area: parseInt(updatesData.area),
-            director: parseInt(updatesData.director),
-            gerencia: parseInt(updatesData.gerencia),
-            calidad: parseInt(updatesData.calidad),
-            seguridad: parseInt(updatesData.seguridad),
-            poblacionfocalizada: parseOrArray(updatesData.poblacionFocalizada),
-            competencias_culturales: parseOrArray(updatesData.competenciasCulturales),
-            competencias_cargo: parseOrArray(updatesData.competenciasCargo),
-            responsabilidades: parseOrArray(updatesData.responsabilidades),
-            plan_entrenamiento: parseOrArray(updatesData.planEntrenamiento),
-            plan_capacitacion_continua: parseOrArray(updatesData.planCapacitacionContinua),
         };
 
         const { data: updated, error: updateError } = await supabase.from('yuli').update(updates).eq('id', id).select().single();
         if (updateError) {
+            console.error('Error al actualizar en reenviarFormulario:', updateError);
             return res.status(500).json({ error: updateError.message });
         }
         
         const aprobadorArea = await getAprobadorById(updated.area);
+        if (!aprobadorArea) {
+            return res.status(400).json({ error: 'El aprobador de área no es válido o no se encontró' });
+        }
+        
         const emailData = await generarHtmlCorreoArea({
             ...updated,
             aprobador: aprobadorArea,
