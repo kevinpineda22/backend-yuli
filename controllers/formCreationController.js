@@ -59,6 +59,18 @@ const getAprobadorById = async (id) => {
     return data;
 };
 
+
+const getAprobadorByEmail = async (email) => {
+    if (!email) return null;
+    const { data, error } = await supabase.from('aprobadores').select('*').eq('correo', email).single();
+    if (error) {
+        console.error("Error al obtener aprobador por correo:", error);
+        return null;
+    }
+    return data;
+};
+
+
 function parseOrArray(val) {
     if (Array.isArray(val)) return val;
     if (typeof val === 'string') {
