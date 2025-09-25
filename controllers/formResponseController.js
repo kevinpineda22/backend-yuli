@@ -266,20 +266,8 @@ export const respuestaSeguridad = async (req, res) => {
         }).eq("workflow_id", workflow_id);
 
         if (decision === "rechazado") {
-            const emailData = await generarHtmlCorreoRechazado({
-                ...formRecord,
-                aprobador: aprobadorSeguridad,
-                observacion,
-            });
-            await sendEmail(aprobadorArea.correo, `Solicitud Rechazada - #${formRecord.id}`, emailData.html, emailData.attachments);
             return res.json({ message: "Formulario rechazado por seguridad" });
         }
-        
-        const emailData = await generarHtmlCorreoAprobado({
-            ...formRecord,
-            aprobador: aprobadorArea,
-        });
-        await sendEmail(aprobadorArea.correo, `Solicitud Aprobada - #${formRecord.id}`, emailData.html, emailData.attachments);
         
         res.json({ message: `Formulario ${newEstado}` });
     } catch (err) {
