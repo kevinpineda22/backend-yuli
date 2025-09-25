@@ -99,13 +99,20 @@ export const crearFormulario = async (req, res) => {
             responsabilidades,
         };
         
+        // Excluir tipoLicencia de la validación obligatoria si requiereVehiculo es "No"
         for (const [key, value] of Object.entries(requiredFields)) {
+            if (key === 'tipoLicencia' && formDataFromClient.requiereVehiculo === 'No') {
+                continue; // Saltar validación de tipoLicencia si no se requiere vehículo
+            }
             if (!value) {
                 return res.status(400).json({ error: `El campo ${key} es obligatorio` });
             }
         }
-        if (formDataFromClient.requiereVehiculo === 'Sí' && !formDataFromClient.tipoLicencia) {
-            return res.status(400).json({ error: 'El campo tipo de licencia es obligatorio si requiere vehículo' });
+
+        // Validar tipoLicencia solo si requiereVehiculo es "Sí" o "Si"
+        const requiereVehiculo = formDataFromClient.requiereVehiculo === 'Sí' || formDataFromClient.requiereVehiculo === 'Si';
+        if (requiereVehiculo && (!formDataFromClient.tipoLicencia || formDataFromClient.tipoLicencia.trim() === '')) {
+            return res.status(400).json({ error: 'El campo tipoLicencia es obligatorio si requiere vehículo' });
         }
 
         let estructuraOrganizacionalUrl = null;
