@@ -62,6 +62,19 @@ const AprobadorSelector = ({ aprobadoresData = {}, onAprobadorChange, disabled, 
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
         <FormControl fullWidth required disabled={disabled}>
+          <InputLabel id="seguridad-label">Seguridad y Salud en el Trabajo</InputLabel>
+          <Select labelId="seguridad-label" name="seguridad" value={data.seguridad || ""} onChange={onAprobadorChange}>
+            <MenuItem value="">--Seleccione--</MenuItem>
+            {aprobadoresPorRol.seguridad.map(ap => (
+              <MenuItem key={ap.id} value={ap.id}>
+                {ap.nombre} ({ap.correo}) - {ap.empresa}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth required disabled={disabled}>
           <InputLabel id="director-label">Director de Área</InputLabel>
           <Select labelId="director-label" name="director" value={data.director || ""} onChange={onAprobadorChange}>
             <MenuItem value="">--Seleccione--</MenuItem>
@@ -86,25 +99,12 @@ const AprobadorSelector = ({ aprobadoresData = {}, onAprobadorChange, disabled, 
           </Select>
         </FormControl>
       </Grid>
-      <Grid size={{ xs: 12, sm: 6 }}>
+      <Grid size={{ xs: 12 }}>
         <FormControl fullWidth required disabled={disabled}>
           <InputLabel id="calidad-label">Calidad</InputLabel>
           <Select labelId="calidad-label" name="calidad" value={data.calidad || ""} onChange={onAprobadorChange}>
             <MenuItem value="">--Seleccione--</MenuItem>
             {aprobadoresPorRol.calidad.map(ap => (
-              <MenuItem key={ap.id} value={ap.id}>
-                {ap.nombre} ({ap.correo}) - {ap.empresa}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-      <Grid size={{ xs: 12 }}>
-        <FormControl fullWidth required disabled={disabled}>
-          <InputLabel id="seguridad-label">Seguridad y Salud en el Trabajo</InputLabel>
-          <Select labelId="seguridad-label" name="seguridad" value={data.seguridad || ""} onChange={onAprobadorChange}>
-            <MenuItem value="">--Seleccione--</MenuItem>
-            {aprobadoresPorRol.seguridad.map(ap => (
               <MenuItem key={ap.id} value={ap.id}>
                 {ap.nombre} ({ap.correo}) - {ap.empresa}
               </MenuItem>

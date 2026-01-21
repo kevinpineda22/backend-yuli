@@ -31,10 +31,8 @@ router.post('/yuli', upload.fields([
   { name: 'estructuraOrganizacional', maxCount: 1 }
 ]), crearFormulario);
 
-router.post('/yuli/resend/:id', upload.fields([
-  { name: 'documento', maxCount: 1 },
-  { name: 'estructuraOrganizacional', maxCount: 1 }
-]), reenviarFormulario);
+// Para el reenvío permitimos cualquier campo de archivo (evita errores de campo inesperado al cambiar la estructura organizacional).
+router.post('/yuli/resend/:id', upload.any(), reenviarFormulario);
 
 
 

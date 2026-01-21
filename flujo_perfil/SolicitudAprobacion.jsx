@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
 import toast, { Toaster } from 'react-hot-toast';
 import { Tabs, Tab, Box, Alert } from '@mui/material';
@@ -150,7 +150,13 @@ const SolicitudAprobacion = () => {
         }
     };
 
+    const companiesKey = useMemo(
+        () => [...availableCompanies].sort().join('|'),
+        [availableCompanies]
+    );
+
     useEffect(() => {
+        // Evitar múltiples fetch por renders: solo cuando cambie la lista de empresas disponible.
         fetchHistorial();
         
         // Auto-configurar el formulario según el acceso del usuario
@@ -167,7 +173,7 @@ const SolicitudAprobacion = () => {
                 setIsMegamayoristasForm(false);
             }
         }
-    }, [availableCompanies]);
+    }, [companiesKey]);
 
     // Nuevo useEffect para manejar el cambio de formulario cuando se edita una solicitud
     useEffect(() => {

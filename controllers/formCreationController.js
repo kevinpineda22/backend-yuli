@@ -188,7 +188,11 @@ export const reenviarFormulario = async (req, res) => {
     try {
         const { id } = req.params;
         const { keepExistingFile, existingFileUrl, ...updatesData } = req.body;
-        const { estructuraOrganizacional } = req.files || {};
+
+        // Aceptar cualquier nombre de campo de archivo y quedarnos con el de estructura.
+        const estructuraFile = (req.files || []).find(
+            (f) => f.fieldname === 'estructuraOrganizacional' || f.fieldname === 'estructuraorganizacional'
+        );
         
         const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
         
@@ -197,9 +201,9 @@ export const reenviarFormulario = async (req, res) => {
         }
         
         let estructuraOrganizacionalUrl = null;
-        if (estructuraOrganizacional && estructuraOrganizacional[0]) {
-            const fileName = `${Date.now()}_${estructuraOrganizacional[0].originalname}`;
-            await supabase.storage.from('pdfs-yuli').upload(fileName, estructuraOrganizacional[0].buffer, { contentType: estructuraOrganizacional[0].mimetype });
+        if (estructuraFile) {
+            const fileName = `${Date.now()}_${estructuraFile.originalname}`;
+            await supabase.storage.from('pdfs-yuli').upload(fileName, estructuraFile.buffer, { contentType: estructuraFile.mimetype });
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
         } else if (keepExistingFile === 'true' && existingFileUrl) {

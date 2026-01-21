@@ -80,13 +80,13 @@ const FormComponent = ({
                 calidad: typeof editingSolicitud.calidad === 'number' ? editingSolicitud.calidad : '',
                 seguridad: typeof editingSolicitud.seguridad === 'number' ? editingSolicitud.seguridad : '',
                 
-                estructuraOrganizacional: null,
+                estructuraOrganizacional: editingSolicitud.estructuraOrganizacional || editingSolicitud.estructura_organizacional || null,
                 planCarrera: editingSolicitud.planCarrera || "",
                 competenciasDesarrolloIngreso: editingSolicitud.competenciasDesarrolloIngreso || "",
-                indicadoresGestion: editingSolicitud.indicadores_gestion || "",
-                requisitosFisicos: editingSolicitud.requisitos_fisicos || "",
-                riesgosObligacionesOrg: editingSolicitud.riesgos_obligaciones_sst_organizacionales || "",
-                riesgosObligacionesEsp: editingSolicitud.riesgos_obligaciones_sst_especificos || "",
+                indicadoresGestion: editingSolicitud.indicadores_gestion || editingSolicitud.indicadoresGestion || "",
+                requisitosFisicos: editingSolicitud.requisitos_fisicos || editingSolicitud.requisitosFisicos || "",
+                riesgosObligacionesOrg: editingSolicitud.riesgos_obligaciones_sst_organizacionales || editingSolicitud.riesgosObligacionesOrg || "",
+                riesgosObligacionesEsp: editingSolicitud.riesgos_obligaciones_sst_especificos || editingSolicitud.riesgosObligacionesEsp || "",
                 // Normalizar valores con posibles inconsistencias de acento
                 requiereVehiculo: editingSolicitud.requiereVehiculo === "Si" ? "Sí" : editingSolicitud.requiereVehiculo || "",
                 requiereViajar: editingSolicitud.requiereViajar === "Si" ? "Sí" : editingSolicitud.requiereViajar || "",
@@ -201,7 +201,8 @@ const FormComponent = ({
     if (!data.tipoContrato) return "El tipo de contrato es requerido.";
     if (!data.misionCargo) return "La misión del cargo es requerida.";
     
-    const hasExistingFile = editingSolicitud && editingSolicitud.estructuraOrganizacional;
+    const existingFileUrl = editingSolicitud && (editingSolicitud.estructuraOrganizacional || editingSolicitud.estructura_organizacional || data.estructuraOrganizacional);
+    const hasExistingFile = !!existingFileUrl;
     const hasNewFile = data.estructuraOrganizacional || editingFile;
     if (!editingSolicitud && !hasNewFile) {
         return "El archivo de estructura organizacional es requerido.";
@@ -487,11 +488,12 @@ const FormComponent = ({
 
         const formPayload = new FormData();
         
+        const existingFileUrl = syncedSolicitud.estructuraOrganizacional || syncedSolicitud.estructura_organizacional;
         if (editingFile) {
             formPayload.append("estructuraOrganizacional", editingFile);
-        } else if (syncedSolicitud.estructuraOrganizacional) {
+        } else if (existingFileUrl) {
             formPayload.append("keepExistingFile", "true");
-            formPayload.append("existingFileUrl", syncedSolicitud.estructuraOrganizacional);
+            formPayload.append("existingFileUrl", existingFileUrl);
         }
         
         const fields = {
