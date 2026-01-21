@@ -190,9 +190,10 @@ export const reenviarFormulario = async (req, res) => {
         const { keepExistingFile, existingFileUrl, ...updatesData } = req.body;
 
         // Aceptar cualquier nombre de campo de archivo y quedarnos con el de estructura.
+        // Si viene más de un archivo, tomamos el primero como respaldo para no perder la nueva estructura.
         const estructuraFile = (req.files || []).find(
             (f) => f.fieldname === 'estructuraOrganizacional' || f.fieldname === 'estructuraorganizacional'
-        );
+        ) || (req.files && req.files[0]);
         
         const { data: solicitud, error: fetchError } = await supabase.from('yuli').select('*').eq('id', id).single();
         
@@ -203,7 +204,16 @@ export const reenviarFormulario = async (req, res) => {
         let estructuraOrganizacionalUrl = null;
         if (estructuraFile) {
             const fileName = `${Date.now()}_${estructuraFile.originalname}`;
-            await supabase.storage.from('pdfs-yuli').upload(fileName, estructuraFile.buffer, { contentType: estructuraFile.mimetype });
+            const { error: uploadError } = await supabase
+                .storage
+                .from('pdfs-yuli')
+                .upload(fileName, estructuraFile.buffer, { contentType: estructuraFile.mimetype });
+
+            if (uploadError) {
+                console.error('Error al subir nueva estructura organizacional:', uploadError);
+                return res.status(500).json({ error: 'Error al subir archivo de estructura organizacional' });
+            }
+
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
         } else if (keepExistingFile === 'true' && (existingFileUrl || solicitud.estructuraorganizacional)) {
