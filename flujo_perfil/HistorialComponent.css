@@ -1,0 +1,560 @@
+/*
+ * Archivo: HistorialComponent.css
+ * Descripción: Estilos para el componente de historial y los modales de detalle,
+ * incluyendo la tabla de competencias para una visualización clara y estructurada.
+ */
+
+:root {
+    --corporate-blue: #0057B8;
+    --secondary-color: #89DC00;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --error-color: #dc3545;
+    --light-color: #f8f9fa;
+    --muted: #6c757d;
+    --card-bg: #ffffff;
+    --border-color: #e9ecef;
+    --radius: 8px;
+    --text-color: #1a1a1a;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Base styles for the component */
+.historial-section {
+    width: 100%;
+    padding: 16px;
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text-color);
+    background-color: #f5f6f8;
+}
+
+.historial-title {
+    font-size: 1.75rem;
+    color: var(--corporate-blue);
+    margin: 16px 0;
+    font-weight: 700;
+    text-align: left;
+    border-bottom: 2px solid var(--corporate-blue);
+    padding-bottom: 8px;
+}
+
+.historial-title.small {
+    font-size: 1.5rem;
+    margin-top: 24px;
+}
+
+/* Empty state message styling */
+.no-solicitudes {
+    text-align: center;
+    font-style: italic;
+    color: var(--muted);
+    margin: 24px 0;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}
+
+/* Folder/Group container styling */
+.solicitud-aprobacion-historial-carpeta {
+    margin: 12px 0;
+    border-radius: var(--radius);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}
+
+.carpeta-titulo {
+    background-color: var(--light-color);
+    padding: 12px 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.carpeta-titulo:hover {
+    background-color: rgba(0, 87, 184, 0.1);
+}
+
+.carpeta-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.subcount {
+    background: var(--corporate-blue);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+}
+
+/* Sub-folder styling */
+.solicitud-aprobacion-historial-subcarpeta {
+    margin: 8px;
+    border-radius: var(--radius);
+    background-color: #fafafa;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.subcarpeta-titulo {
+    background-color: #f1f3f5;
+    padding: 10px 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.subcarpeta-titulo:hover {
+    /* Hover lighten removido para evitar reflows */
+}
+
+/* Main table styling */
+.solicitud-aprobacion-historial-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 12px 0;
+    table-layout: fixed;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.solicitud-aprobacion-historial-table th,
+.solicitud-aprobacion-historial-table td {
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.solicitud-aprobacion-historial-table th {
+    background-color: var(--corporate-blue);
+    color: #fff;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Main table column widths */
+.solicitud-aprobacion-historial-table th:nth-child(1),
+.solicitud-aprobacion-historial-table td.td-date { width: 11%; }
+.solicitud-aprobacion-historial-table th:nth-child(2),
+.solicitud-aprobacion-historial-table td.td-name { width: 22%; }
+.solicitud-aprobacion-historial-table th:nth-child(3),
+.solicitud-aprobacion-historial-table td.td-area { width: 14%; }
+.solicitud-aprobacion-historial-table th:nth-child(4),
+.solicitud-aprobacion-historial-table td.td-status { width: 15%; }
+.solicitud-aprobacion-historial-table th:nth-child(5),
+.solicitud-aprobacion-historial-table td.td-progress { width: 24%; }
+.solicitud-aprobacion-historial-table th:nth-child(6),
+.solicitud-aprobacion-historial-table td.td-actions { width: 14%; }
+
+.solicitud-aprobacion-historial-table tr:nth-child(even) { background-color: #f9fafb; }
+.solicitud-aprobacion-historial-table tr:hover { background-color: #f9fafb; }
+
+.td-name-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+    gap: 10px;
+}
+
+.td-name-text {
+    font-weight: 600;
+    display: block;
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 0;
+}
+
+/* Action buttons styling */
+.acciones-container-desktop {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.accion-edit, .accion-view {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    min-width: 80px;
+}
+
+.accion-edit {
+    background-color: var(--corporate-blue);
+    color: #fff;
+}
+
+.accion-edit:hover {
+    background-color: #004a9e;
+    box-shadow: none;
+}
+
+.accion-view {
+    border-color: var(--corporate-blue);
+    color: var(--corporate-blue);
+    background-color: transparent;
+}
+
+.accion-view:hover {
+    background-color: var(--corporate-blue);
+    color: #fff;
+    box-shadow: none;
+}
+
+/* Progress stepper styling */
+.stepper-root {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    padding: 6px 4px;
+    width: 100%;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    flex: 1;
+    min-width: 50px;
+    justify-content: center;
+    text-align: center;
+    background: #e9ecef;
+}
+
+.step.completed {
+    background: var(--corporate-blue);
+    color: #fff;
+}
+
+.step.pending {
+    background: var(--warning-color);
+    color: #111;
+}
+
+.step.inactive {
+    background: #e9ecef;
+    color: var(--muted);
+}
+
+.step .step-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.step.completed .step-icon {
+    color: #fff;
+}
+
+.step.pending .step-icon {
+    color: #111;
+}
+
+.step.inactive .step-icon {
+    color: var(--muted);
+}
+
+.step .step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.step.completed .step-label,
+.step.pending .step-label {
+    color: inherit;
+}
+
+.connector {
+    width: 16px;
+    height: 3px;
+    background: #e9ecef;
+    border-radius: 2px;
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.connector.connected {
+    background: var(--corporate-blue);
+}
+
+/* Other modal styles */
+.no-aplica {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.list-competencias li,
+.list-responsabilidades li {
+    list-style-type: disc;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+
+/* Competency Table Styles */
+.competency-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.competency-table th,
+.competency-table td {
+    border: 1px solid #dcdcdc;
+    padding: 8px;
+    vertical-align: top;
+    text-align: left;
+}
+
+.competency-table thead {
+    background-color: #f1f3f5;
+}
+
+.competency-table th {
+    font-weight: 700;
+    text-align: center;
+    background-color: #f1f3f5;
+    color: #333;
+}
+
+.competency-table td {
+    background-color: var(--card-bg);
+}
+
+.competency-table .level-col {
+    width: 10%;
+    text-align: center;
+    font-weight: 700;
+    color: var(--corporate-blue);
+}
+
+.competency-table .definition-col {
+    width: 40%;
+}
+
+.competency-table tbody tr:hover {
+    background-color: #f9fbfd;
+}
+
+/* Estilos para las Tarjetas de Responsabilidades */
+.responsibilities-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.responsibility-card {
+    padding: 16px;
+    border-radius: var(--radius);
+    background-color: #f9fafb;
+    border-left: 4px solid var(--corporate-blue);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.responsibility-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Mobile card view styling */
+.solicitud-card {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .solicitud-aprobacion-historial-table,
+    .solicitud-aprobacion-historial-table thead {
+        display: none;
+    }
+
+    .solicitud-card {
+        display: block;
+        margin: 12px 0;
+        border-radius: var(--radius);
+        background: var(--card-bg);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border-color);
+    }
+
+    .solicitud-card .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .card-body {
+        margin-top: 10px;
+    }
+
+    .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .card-row:first-child {
+        border-top: none;
+    }
+
+    .card-label {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .card-value {
+        text-align: right;
+        max-width: 65%;
+    }
+
+    .td-name-text {
+        font-weight: 600;
+        display: inline-block;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .stepper-root {
+        gap: 4px;
+        padding: 4px 2px;
+    }
+
+    .step {
+        min-width: 40px;
+        padding: 4px 6px;
+        gap: 4px;
+    }
+
+    .step .step-label {
+        font-size: 0.75rem;
+    }
+
+    .connector {
+        width: 10px;
+        margin: 0 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .historial-section {
+        padding: 8px;
+    }
+
+    .historial-title {
+        font-size: 1.5rem;
+    }
+
+    .carpeta-titulo,
+    .subcarpeta-titulo {
+        font-size: 0.95rem;
+        padding: 10px;
+    }
+
+    .accion-edit,
+    .accion-view {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        min-width: 70px;
+    }
+
+    .stepper-root {
+        gap: 3px;
+        padding: 3px 2px;
+    }
+
+    .step {
+        min-width: 35px;
+        padding: 3px 5px;
+        gap: 3px;
+    }
+
+    .step .step-label {
+        font-size: 0.65rem;
+    }
+
+    .connector {
+        width: 8px;
+        margin: 0 1px;
+    }
+}
+
+/* Estilos para el Tooltip para asegurar que muestre el stepper completo */
+.MuiTooltip-tooltip.MuiTooltip-tooltipPlacementTop {
+    max-width: none !important; /* Desactiva el ancho máximo para permitir que se expanda */
+    width: fit-content; /* Se ajusta al ancho del contenido */
+    padding: 8px 12px; /* Añade un poco de padding para que no se pegue el contenido al borde */
+    background-color: #ffffff; /* Fondo blanco */
+    border: 1px solid #ddd; /* Borde sutil gris claro */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); /* Sombra para dar profundidad */
+    color: #333; /* Color de texto más oscuro para contraste */
+    border-radius: 4px; /* Bordes ligeramente redondeados */
+}
+
+/* Para la flecha del tooltip, si quieres que también tenga un color diferente */
+.MuiTooltip-arrow { 
+    color: #ffffff; /* Color de la flecha del mismo color que el fondo del tooltip */
+}

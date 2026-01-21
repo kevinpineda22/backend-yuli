@@ -33,10 +33,10 @@ export const respuestaArea = async (req, res) => {
             return res.status(500).json({ error: "Error al obtener el registro" });
         }
 
-        const aprobadorDirector = await getAprobadorById(formRecord.director);
+        const aprobadorSeguridad = await getAprobadorById(formRecord.seguridad);
         const aprobadorArea = await getAprobadorById(formRecord.area);
 
-        if (!aprobadorDirector || !aprobadorArea) {
+        if (!aprobadorSeguridad || !aprobadorArea) {
              return res.status(400).json({ error: "Aprobadores no encontrados." });
         }
         
@@ -50,7 +50,7 @@ export const respuestaArea = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${aprobadorArea.nombre})`;
         } else {
-            newEstado = "aprobado por area";
+            newEstado = "pendiente por seguridad";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -64,15 +64,15 @@ export const respuestaArea = async (req, res) => {
             return res.json({ message: "Formulario rechazado por el área" });
         }
 
-        const emailData = await generarHtmlCorreoDirector({
+        const emailData = await generarHtmlCorreoSeguridad({
             ...formRecord,
-            aprobador: aprobadorDirector,
-            approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
-            rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
+            aprobador: aprobadorSeguridad,
+            approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
+            rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
         });
 
-        await sendEmail(aprobadorDirector.correo, "Solicitud de Aprobación - Director", emailData.html, emailData.attachments);
-        res.json({ message: "Decisión del área registrada y correo enviado al director" });
+        await sendEmail(aprobadorSeguridad.correo, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
+        res.json({ message: "Decisión del área registrada y correo enviado a Seguridad" });
     } catch (err) {
         console.error("Error en respuestaArea:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -96,7 +96,7 @@ export const respuestaDirector = async (req, res) => {
             return res.status(400).json({ error: "Aprobadores no encontrados." });
         }
         
-        const expectedEstado = formRecord.isConstruahorro ? "pendiente por director" : "aprobado por area";
+        const expectedEstado = "pendiente por director";
         if (formRecord.estado !== expectedEstado) {
             return res.status(400).json({ error: `Estado inválido. Se esperaba '${expectedEstado}', pero se encontró '${formRecord.estado}'` });
         }
@@ -191,9 +191,8 @@ export const respuestaCalidad = async (req, res) => {
         const { formRecord, error: fetchError } = await getFormRecord(workflow_id);
         if (fetchError) return res.status(500).json({ error: "Error al obtener el registro" });
 
-        const aprobadorSeguridad = await getAprobadorById(formRecord.seguridad);
         const aprobadorCalidad = await getAprobadorById(formRecord.calidad);
-        if (!aprobadorSeguridad || !aprobadorCalidad) return res.status(400).json({ error: "Aprobadores no encontrados." });
+        if (!aprobadorCalidad) return res.status(400).json({ error: "Aprobadores no encontrados." });
         
         if (formRecord.estado !== "aprobado por gerencia") {
             return res.status(400).json({ error: `Gerencia aún no ha aprobado esta solicitud. Estado actual: '${formRecord.estado}'` });
@@ -206,7 +205,7 @@ export const respuestaCalidad = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${aprobadorCalidad.nombre})`;
         } else {
-            newEstado = "pendiente por seguridad";
+            newEstado = "aprobado por todos";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -219,14 +218,7 @@ export const respuestaCalidad = async (req, res) => {
         if (decision === "rechazado") {
             return res.json({ message: "Formulario rechazado por calidad" });
         }
-        const emailData = await generarHtmlCorreoSeguridad({
-            ...formRecord,
-            aprobador: aprobadorSeguridad,
-            approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
-            rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/seguridad`,
-        });
-        await sendEmail(aprobadorSeguridad.correo, "Solicitud de Aprobación - Seguridad y Salud en el Trabajo", emailData.html, emailData.attachments);
-        res.json({ message: "Decisión de calidad registrada y correo enviado a Seguridad y Salud en el Trabajo" });
+        res.json({ message: "Formulario aprobado por todas las áreas" });
     } catch (err) {
         console.error("Error en respuestaCalidad:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });
@@ -240,9 +232,9 @@ export const respuestaSeguridad = async (req, res) => {
         const { formRecord, error: fetchError } = await getFormRecord(workflow_id);
         if (fetchError) return res.status(500).json({ error: "Error al obtener el registro" });
 
-        const aprobadorArea = await getAprobadorById(formRecord.area);
+        const aprobadorDirector = await getAprobadorById(formRecord.director);
         const aprobadorSeguridad = await getAprobadorById(formRecord.seguridad);
-        if (!aprobadorArea || !aprobadorSeguridad) return res.status(400).json({ error: "Aprobadores no encontrados." });
+        if (!aprobadorDirector || !aprobadorSeguridad) return res.status(400).json({ error: "Aprobadores no encontrados." });
         
         if (formRecord.estado !== "pendiente por seguridad") {
             return res.status(400).json({ error: `Estado inválido. Se esperaba 'pendiente por seguridad', pero se encontró '${formRecord.estado}'` });
@@ -255,7 +247,7 @@ export const respuestaSeguridad = async (req, res) => {
         if (decision === "rechazado") {
             newEstado = `rechazado por ${currentEtapa} (${aprobadorSeguridad.nombre})`;
         } else {
-            newEstado = "aprobado por todos";
+            newEstado = "pendiente por director";
             newEtapasAprobadas = [...newEtapasAprobadas, currentEtapa];
         }
 
@@ -269,7 +261,15 @@ export const respuestaSeguridad = async (req, res) => {
             return res.json({ message: "Formulario rechazado por seguridad" });
         }
         
-        res.json({ message: `Formulario ${newEstado}` });
+        const emailData = await generarHtmlCorreoDirector({
+            ...formRecord,
+            aprobador: aprobadorDirector,
+            approvalLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
+            rejectionLink: `https://www.merkahorro.com/dgdecision/${workflow_id}/director`,
+        });
+
+        await sendEmail(aprobadorDirector.correo, "Solicitud de Aprobación - Director", emailData.html, emailData.attachments);
+        res.json({ message: "Decisión de seguridad registrada y correo enviado al director" });
     } catch (err) {
         console.error("Error en respuestaSeguridad:", err);
         res.status(500).json({ error: err.message || "Error interno del servidor" });

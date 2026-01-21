@@ -1,0 +1,465 @@
+/* DGdecision.css - Versión Mejorada con azul corporativo en todos los títulos */
+
+/* =============================
+   0. Variables Globales y Reset
+   ============================= */
+:root {
+    --corporate-blue-dark: #210d65; /* Azul corporativo oscuro principal */
+    --corporate-blue-medium: #4a3e83; /* Tono de azul/púrpura más suave para texto secundario */
+    --corporate-blue-light: #5d52a2; /* Un tono más claro del azul corporativo */
+    
+    --accent-color: #007bff; /* Azul brillante para enlaces/botones secundarios */
+
+    --text-dark: #333333;
+    --text-medium: #555555;
+    --text-light: #777777;
+
+    --bg-light: #f8f9fa; /* Fondo muy claro */
+    --bg-medium: #f0f2f5; /* Fondo de secciones */
+    --bg-card: #ffffff; /* Fondo de tarjetas */
+
+    --border-color-light: #e0e0e0;
+    --border-color-medium: #c2c2c2;
+
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --warning-color: #ffc107;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+
+    --border-radius: 10px;
+    --transition-speed: 0.3s ease;
+
+    --font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-light);
+    font-family: var(--font-family);
+    color: var(--text-dark);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* =============================
+   1. Contenedor Principal
+   ============================= */
+.aprobar-rechazar-container {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    animation: fadeIn 0.6s var(--transition-speed);
+}
+
+.logo-container-aprobar {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo-container-aprobar img {
+    height: 60px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================
+   2. Encabezados
+   ============================= */
+.form-header {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--corporate-blue-dark); /* Aplicado aquí */
+    margin-bottom: 10px;
+    text-align: center;
+    letter-spacing: -0.5px;
+}
+
+.form-subtitle {
+    font-size: 1.25rem;
+    color: var(--corporate-blue-medium); /* Aplicado aquí (un tono más suave) */
+    margin-bottom: 30px;
+    text-align: center;
+    font-weight: 400;
+}
+
+/* =============================
+   3. Estilos de Secciones y Tarjetas
+   ============================= */
+.form-card {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
+
+.MuiPaper-root {
+    background-color: var(--bg-card) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: var(--shadow-md) !important;
+    padding: 25px !important;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color-light);
+}
+
+.MuiTypography-h6 {
+    font-size: 1.3rem !important;
+    font-weight: 600 !important;
+    color: var(--corporate-blue-dark) !important; /* Aplicado aquí */
+    margin-bottom: 15px !important;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color-light);
+}
+
+.MuiTypography-subtitle1 {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: var(--corporate-blue-dark) !important; /* Aplicado aquí */
+    margin-top: 15px !important;
+    margin-bottom: 10px !important;
+}
+
+.MuiTypography-body1 strong {
+    color: var(--corporate-blue-dark); /* Aplicado aquí */
+    font-weight: 600;
+}
+.MuiTypography-body1 {
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.no-aplica {
+    color: var(--text-light);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.btn-doc {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 15px;
+    background-color: var(--accent-color);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: var(--transition-speed);
+    font-weight: 500;
+}
+.btn-doc:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+.btn-doc::before {
+    content: "📄";
+    font-size: 1em;
+}
+
+.MuiPaper-root img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--border-radius);
+    margin-top: 10px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* =============================
+   4. Tablas de Competencias
+   ============================= */
+.competency-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.85rem;
+    table-layout: fixed;
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.competency-table th,
+.competency-table td {
+    border: 1px solid var(--border-color-light);
+    padding: 10px;
+    vertical-align: middle;
+    text-align: left;
+    white-space: normal;
+}
+
+.competency-table thead {
+    background-color: var(--bg-medium);
+}
+
+.competency-table th {
+    font-weight: 600;
+    text-align: center;
+    color: var(--corporate-blue-dark); /* Aplicado aquí */
+    border-bottom: 2px solid var(--border-color-medium);
+}
+
+.competency-table .level-col {
+    width: 10%;
+    text-align: center;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.competency-table .definition-col {
+    width: 40%;
+}
+
+.competency-table tbody tr:hover {
+    background-color: #f0f5fa;
+    transition: background-color 0.2s ease;
+}
+
+/* =============================
+   5. Tarjetas de Responsabilidades
+   ============================= */
+.responsibilities-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.responsibility-card {
+    padding: 18px;
+    border-radius: var(--border-radius);
+    background-color: var(--bg-medium);
+    border-left: 5px solid var(--corporate-blue-dark); /* Borde también azul corporativo */
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-speed);
+}
+
+.responsibility-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    background-color: #e5e7eb;
+}
+
+.responsibility-card strong {
+    color: var(--corporate-blue-dark); /* Aplicado aquí */
+    font-weight: 600;
+    font-size: 1rem;
+}
+.responsibility-card span {
+    font-size: 0.9rem;
+    color: var(--text-medium);
+}
+
+/* =============================
+   6. Área de Observación
+   ============================= */
+.form-group {
+    margin-top: 30px;
+    margin-bottom: 20px;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--corporate-blue-dark); /* Aplicado aquí */
+    font-size: 1.1rem;
+}
+
+.observacion-input {
+    min-height: 120px;
+    padding: 15px;
+    border: 1px solid var(--border-color-medium);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    resize: vertical;
+    background-color: var(--bg-card);
+    color: var(--text-dark);
+    box-sizing: border-box;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+.observacion-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+.observacion-input:disabled {
+    background-color: var(--bg-medium);
+    cursor: not-allowed;
+    color: var(--text-light);
+}
+
+/* =============================
+   7. Botones de Decisión
+   ============================= */
+.decision-buttons {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+}
+
+.btn-approve,
+.btn-reject {
+    padding: 14px 28px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    min-width: 180px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-approve {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-approve:hover:not(.btn-disabled) {
+    background-color: #218838;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-reject {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-reject:hover:not(.btn-disabled) {
+    background-color: #c82333;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-disabled {
+    background-color: var(--text-light) !important;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.8;
+}
+
+/* =============================
+   8. Estado de Carga
+   ============================= */
+.cargando {
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-medium);
+    margin-top: 40px;
+    font-weight: 500;
+}
+
+/* =============================
+   9. Media Queries para Responsividad
+   ============================= */
+@media (max-width: 768px) {
+    .aprobar-rechazar-container {
+        margin: 20px 15px;
+        padding: 20px;
+    }
+
+    .form-header {
+        font-size: 2rem;
+    }
+
+    .form-subtitle {
+        font-size: 1rem;
+        margin-bottom: 20px;
+    }
+
+    .MuiTypography-h6 {
+        font-size: 1.1rem !important;
+    }
+
+    .MuiTypography-body1, .observacion-input, .btn-approve, .btn-reject {
+        font-size: 0.9rem;
+    }
+
+    .competency-table {
+        font-size: 0.8rem;
+    }
+
+    .competency-table th, .competency-table td {
+        padding: 6px;
+    }
+
+    .responsibilities-container {
+        grid-template-columns: 1fr;
+    }
+
+    .decision-buttons {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .btn-approve, .btn-reject {
+        min-width: unset;
+        width: 100%;
+        padding: 12px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-container-aprobar img {
+        height: 45px;
+    }
+    .form-header {
+        font-size: 1.8rem;
+    }
+}
+
+/* =============================
+   Mensajes de Estado (Mejorados)
+   ============================= */
+.alerta-estado {
+    margin-top: 25px;
+    padding: 18px;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    animation: slideIn 0.5s ease-in-out;
+}
+
+.alerta-estado p {
+    margin: 0;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mensaje-aprobado {
+    background-color: #d4edda;
+    color: var(--success-color);
+    border-color: #c3e6cb;
+}
+
+.mensaje-rechazado {
+    background-color: #f8d7da;
+    color: var(--error-color);
+    border-color: #f5c6cb;
+}
+
+.btn-disabled {
+    background-color: #ccc !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.6;
+}

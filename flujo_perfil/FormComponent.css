@@ -1,0 +1,161 @@
+/* Estilos para el FormComponent */
+.solicitud-aprobacion-form {
+    width: 100%;
+    max-width: 800px;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 40px;
+}
+
+.form-section-title {
+    font-size: 1.8rem;
+    color: var(--secondary-color);
+    margin: 30px 0 20px;
+    text-align: left;
+}
+
+.form-subsection-title {
+    font-size: 1.4rem;
+    color: var(--text-color);
+    margin: 20px 0 15px;
+    font-weight: 600;
+}
+
+.solicitud-aprobacion-form-field {
+    margin-bottom: 20px;
+}
+
+.solicitud-aprobacion-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.solicitud-aprobacion-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.solicitud-aprobacion-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+input[type="file"].solicitud-aprobacion-input {
+    padding: 8px;
+}
+
+textarea.solicitud-aprobacion-input {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.solicitud-aprobacion-add-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: #007bff;
+    color: #fff;
+    margin-top: 10px;
+    display: block;
+}
+
+.solicitud-aprobacion-add-button:hover {
+    background-color: #0056b3;
+}
+
+.solicitud-aprobacion-form-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.solicitud-aprobacion-submit-button,
+.solicitud-aprobacion-resend-button,
+.solicitud-aprobacion-cancel-button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.solicitud-aprobacion-submit-button {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.solicitud-aprobacion-submit-button:hover:not(:disabled) {
+    background-color: var(--hover-color);
+}
+
+.solicitud-aprobacion-resend-button {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.solicitud-aprobacion-resend-button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.solicitud-aprobacion-cancel-button {
+    background-color: var(--cancel-color);
+    color: #fff;
+}
+
+.solicitud-aprobacion-cancel-button:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.solicitud-aprobacion-submit-button:disabled,
+.solicitud-aprobacion-resend-button:disabled,
+.solicitud-aprobacion-cancel-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+@media (max-width: 768px) {
+    .solicitud-aprobacion-form {
+        padding: 20px;
+        max-width: 100%;
+    }
+
+    .solicitud-aprobacion-add-button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-section-title {
+        font-size: 1.5rem;
+    }
+
+    .form-subsection-title {
+        font-size: 1.2rem;
+    }
+
+    .solicitud-aprobacion-form-buttons {
+        flex-direction: column;
+    }
+
+    .solicitud-aprobacion-submit-button,
+    .solicitud-aprobacion-resend-button,
+    .solicitud-aprobacion-cancel-button {
+        width: 100%;
+    }
+}

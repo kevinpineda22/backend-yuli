@@ -1,0 +1,100 @@
+/* Estilos generales y del contenedor principal */
+:root {
+  --primary-color: #89DC00;
+  /* Verde principal */
+  --secondary-color: #210d65;
+  /* Azul oscuro */
+  --light-color: #f4f4f9;
+  /* Fondo claro */
+  --text-color: #333;
+  /* Texto principal */
+  --error-color: #e63946;
+  /* Rojo para errores */
+  --success-color: #89DC00;
+  /* Verde para éxito */
+  --background-color: #f0f2f5;
+  /* Fondo general */
+  --border-color: #e0e0e0;
+  /* Bordes */
+  --hover-color: #76c400;
+  /* Verde más oscuro para hover */
+  --cancel-color: #6c757d;
+  /* Gris para cancelar */
+
+  /* Variables específicas de empresas para botones */
+  --merkahorro-primary: #89DC00;
+  --merkahorro-secondary: #76c400;
+
+  --construahorro-primary: #fcb900;
+  --construahorro-secondary: #e0a800;
+
+  --megamayoristas-primary: #00a1dd;
+  --megamayoristas-secondary: #0081b1;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.solicitud-aprobacion-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  max-width: 1400px;
+  margin: 20px auto;
+}
+
+.logo-container-solicitud {
+  margin-bottom: 20px;
+}
+
+.logo-container-solicitud img {
+  height: 50px;
+}
+
+.logo-container-solicitud img:hover {
+  /* Hover transform removido para evitar reflows */
+}
+
+.solicitud-aprobacion-header {
+  font-size: 2rem;
+  color: var(--secondary-color);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.frase-motivacional {
+  font-size: 1.1rem;
+  color: var(--text-color);
+  font-style: italic;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .solicitud-aprobacion-container {
+    padding: 20px;
+    margin: 10px;
+  }
+
+  .solicitud-aprobacion-header {
+    font-size: 1.5rem;
+  }
+
+  .frase-motivacional {
+    font-size: 0.9rem;
+  }
+}
+

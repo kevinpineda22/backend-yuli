@@ -1,0 +1,86 @@
+/* Container principal de los filtros */
+.filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem; /* Aumenta el espacio entre los filtros */
+    padding: 1.5rem;
+    background-color: #f7f7f7; /* Fondo más suave */
+    border-radius: 12px; /* Bordes más redondeados */
+    margin-bottom: 2rem; /* Espacio debajo del contenedor */
+    align-items: flex-end; /* Asegura que todos los elementos se alineen en la parte inferior */
+}
+
+/* Grupo de cada filtro (label + select) */
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* Permite que cada grupo crezca y ocupe espacio */
+    min-width: 200px; /* Ancho mínimo para evitar que se aplasten en pantallas pequeñas */
+}
+
+/* Estilos de la etiqueta del filtro */
+.filter-label {
+    font-weight: 600; /* Texto más grueso */
+    color: #4a4a4a; /* Color de texto más oscuro para mayor legibilidad */
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+/* Estilos del selector (dropdown) */
+.filter-select {
+    width: 100%;
+    padding: 0.75rem; /* Espaciado interno generoso */
+    border: 1px solid #dcdcdc; /* Borde más claro */
+    border-radius: 8px; /* Bordes redondeados */
+    background-color: #fff; /* Fondo blanco */
+    font-size: 1rem;
+    color: #333;
+    cursor: pointer;
+    -webkit-appearance: none; /* Elimina estilos por defecto en WebKit */
+    -moz-appearance: none; /* Elimina estilos por defecto en Mozilla */
+    appearance: none; /* Elimina estilos por defecto del sistema operativo */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+/* Estilos del select en estado de enfoque */
+.filter-select:focus {
+    border-color: #0057B8; /* Color corporativo al enfocar */
+    outline: none;
+}
+
+/* Estilos para el input de filtro */
+.filter-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 250px;
+    font-family: inherit;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.filter-input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+/* Estilos para dispositivos móviles */
+@media (max-width: 768px) {
+    .filter-container {
+        flex-direction: column; /* Apila los filtros en una columna */
+        gap: 1rem; /* Reduce el espacio entre ellos */
+        padding: 1rem;
+    }
+
+    .filter-group {
+        width: 100%; /* Ocupa el ancho completo */
+        min-width: auto;
+    }
+}
