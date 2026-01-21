@@ -206,8 +206,8 @@ export const reenviarFormulario = async (req, res) => {
             await supabase.storage.from('pdfs-yuli').upload(fileName, estructuraFile.buffer, { contentType: estructuraFile.mimetype });
             const { data: publicUrlData } = supabase.storage.from('pdfs-yuli').getPublicUrl(fileName);
             estructuraOrganizacionalUrl = publicUrlData.publicUrl;
-        } else if (keepExistingFile === 'true' && existingFileUrl) {
-            estructuraOrganizacionalUrl = existingFileUrl;
+        } else if (keepExistingFile === 'true' && (existingFileUrl || solicitud.estructuraorganizacional)) {
+            estructuraOrganizacionalUrl = existingFileUrl || solicitud.estructuraorganizacional;
         } else {
             return res.status(400).json({ error: 'El archivo estructura organizacional es obligatorio' });
         }
